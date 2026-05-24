@@ -242,15 +242,13 @@ body {
 .tile.start-C, .tile.dest-c { --accent: var(--commuter-C); }
 .tile.start-D, .tile.dest-d { --accent: var(--commuter-D); }
 
-/* Rail tile: dark gravel base; the actual rails + ties are drawn by the
-   neighbor-aware <svg.rail-svg> child added in ui.js. No background-image
-   here — the old gradient pattern leaked through and competed with the
-   SVG, producing a double-track artifact. */
+/* Rail tile: neutral tile background; the actual rails + ties are drawn
+   by the neighbor-aware <svg.rail-svg> child added in ui.js. The dark
+   gravel base was too heavy — the rail SVG carries enough visual weight
+   on its own, and the lighter ground makes the commuter trails easier
+   to read across the board. */
 .tile.rail {
-  background-color: #2a1f15;
-  box-shadow:
-    inset 0 -2px 0 #00000060,
-    inset 0 1px 0 #ffffff15;
+  background-color: var(--tile-bg);
 }
 .tile.rail .sprite-svg { display: none; }
 .rail-svg {
@@ -285,10 +283,6 @@ body {
   box-shadow: inset 0 0 0 2px rgba(245, 180, 0, 0.55);
   background-color: rgba(255, 216, 74, 0.28);
   z-index: 1;
-}
-.tile.rail.highlight {
-  background-color: #4a4327;
-  box-shadow: inset 0 0 0 2px rgba(255, 216, 74, 0.7);
 }
 .tile.start.highlight,
 .tile.dest.highlight {
