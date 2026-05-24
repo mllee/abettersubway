@@ -590,12 +590,11 @@ function renderHud(r) {
   const title = document.createElement('h1');
   title.className = 'hud-title';
   title.innerHTML =
-    `Help get everyone to work in under ` +
-    `<span class="deadline">${deadline} minutes</span> ` +
-    `using as few train tracks as possible!` +
-    `<span class="hud-subtitle">Everyone takes the shortest route — ` +
-    `walking <strong>2 min</strong> per square, ` +
-    `train <strong>30 sec</strong> per square.</span>`;
+    `Get everyone to work in ` +
+    `<span class="deadline">${deadline} minutes</span>` +
+    `<span class="hud-subtitle">Click and drag empty tiles to add train tracks · ` +
+    `Walking <strong>2 min</strong>/square · ` +
+    `Train <strong>30 sec</strong>/square</span>`;
   top.appendChild(title);
 
   const submit = document.createElement('button');
