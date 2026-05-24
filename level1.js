@@ -106,4 +106,14 @@ export const LEVEL_1 = {
 
   walkCost: 2.0,
   railCost: 0.5,
+
+  // One canonical 19-tile gold solution, surfaced via the "Reveal best
+  // solution" button in the success modal. There are many geometrically
+  // distinct 19-tile solutions; this is one found by a greedy add+trim
+  // solver. Coords are [x, y].
+  goldSolution: [
+    [8, 3], [8, 4], [2, 6], [3, 6], [4, 6], [5, 6], [6, 6], [8, 6],
+    [9, 6], [9, 7], [9, 8], [9, 9], [10, 9], [9, 10], [9, 11], [8, 12],
+    [9, 12], [8, 13], [8, 14],
+  ],
 };
