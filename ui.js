@@ -33,46 +33,14 @@ hoverCard.className = 'hover-card';
 hoverCard.style.display = 'none';
 document.body.appendChild(hoverCard);
 
-// City banner — big pixel-font level name sandwiched between the prev /
-// next arrows. Sits between the HUD and the grid. Hidden when there's
-// only one level registered, so adding a third later "just works."
-if (LEVELS.length > 1) {
-  const banner = document.createElement('div');
-  banner.className = 'city-banner';
-
-  const prev = document.createElement('button');
-  prev.className = 'banner-arrow';
-  prev.type = 'button';
-  prev.textContent = '◀';
-  prev.title = 'Previous city';
-  prev.addEventListener('click', () => switchLevel(-1));
-
-  const title = document.createElement('div');
-  title.className = 'banner-title';
-  title.textContent = ACTIVE_LEVEL.name.toUpperCase();
-
-  const counter = document.createElement('div');
-  counter.className = 'banner-counter';
-  counter.textContent = `${getActiveLevelIndex() + 1} / ${LEVELS.length}`;
-
-  const titleWrap = document.createElement('div');
-  titleWrap.className = 'banner-title-wrap';
-  titleWrap.appendChild(title);
-  titleWrap.appendChild(counter);
-
-  const next = document.createElement('button');
-  next.className = 'banner-arrow';
-  next.type = 'button';
-  next.textContent = '▶';
-  next.title = 'Next city';
-  next.addEventListener('click', () => switchLevel(+1));
-
-  banner.appendChild(prev);
-  banner.appendChild(titleWrap);
-  banner.appendChild(next);
-
-  // Insert into the body before #app so it appears between HUD and grid.
-  document.body.insertBefore(banner, app);
+// City title — plain pixel-font caption above the grid (no panel chrome).
+// Just tells the player what city they're looking at. The actual level
+// switching lives in the success modal.
+{
+  const cityTitle = document.createElement('div');
+  cityTitle.className = 'city-title';
+  cityTitle.textContent = ACTIVE_LEVEL.name.toUpperCase();
+  document.body.insertBefore(cityTitle, app);
 }
 
 function switchLevel(delta) {
@@ -871,6 +839,30 @@ function showResultModal(r) {
     reveal.textContent = 'REVEAL BEST SOLUTION';
     reveal.addEventListener('click', () => askToReveal());
     actions.appendChild(reveal);
+  }
+
+  // Level switcher — prev/next buttons appear in the modal so the player
+  // moves to other cities after they've engaged with this one. Hidden
+  // when only one level is registered.
+  if (LEVELS.length > 1) {
+    const nav = document.createElement('div');
+    nav.className = 'modal-level-nav';
+
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'modal-btn ghost level-nav-btn';
+    const prevIdx = (getActiveLevelIndex() - 1 + LEVELS.length) % LEVELS.length;
+    prevBtn.textContent = `◀ ${LEVELS[prevIdx].name.toUpperCase()}`;
+    prevBtn.addEventListener('click', () => switchLevel(-1));
+    nav.appendChild(prevBtn);
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'modal-btn ghost level-nav-btn';
+    const nextIdx = (getActiveLevelIndex() + 1) % LEVELS.length;
+    nextBtn.textContent = `${LEVELS[nextIdx].name.toUpperCase()} ▶`;
+    nextBtn.addEventListener('click', () => switchLevel(+1));
+    nav.appendChild(nextBtn);
+
+    modal.appendChild(nav);
   }
 
   function askToReveal() {
