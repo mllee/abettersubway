@@ -296,6 +296,42 @@ body {
     inset 0 0 0 6px rgba(255, 216, 74, 0.45);
 }
 
+/* Commuter path animation — small color-coded dots cycle along each
+   commuter's current shortest path. SVG overlay sits above the tile grid
+   but below the HUD/sidebar and modal. Pointer-events off so it can't
+   intercept clicks. */
+.commuter-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 4;
+}
+.commuter-dot {
+  fill: var(--dot-color);
+  stroke: #fff8e8;
+  stroke-width: 1.25;
+  opacity: 0.78;
+  transition: r 160ms ease-out, opacity 160ms ease-out;
+  filter: drop-shadow(0 1px 1px #00000040);
+}
+.commuter-dot.dot-A { --dot-color: var(--commuter-A); }
+.commuter-dot.dot-B { --dot-color: var(--commuter-B); }
+.commuter-dot.dot-C { --dot-color: var(--commuter-C); }
+.commuter-dot.dot-D { --dot-color: var(--commuter-D); }
+
+/* When a commuter is hovered, their dot grows and brightens to reinforce
+   the existing yellow path highlight; the others dim back so the eye can
+   follow just the focused one. */
+#app[data-highlight] .commuter-dot { opacity: 0.25; }
+#app[data-highlight="A"] .commuter-dot.dot-A,
+#app[data-highlight="B"] .commuter-dot.dot-B,
+#app[data-highlight="C"] .commuter-dot.dot-C,
+#app[data-highlight="D"] .commuter-dot.dot-D {
+  opacity: 1;
+  r: 6;
+}
+
 .tile.reject {
   animation: flash-reject 320ms ease-out;
 }

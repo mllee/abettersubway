@@ -328,6 +328,149 @@ let currentRoutes = null;
 let dragMode = null;       // 'place' | 'remove' | null
 let lastDragKey = null;    // last "x,y" we acted on, to avoid double-apply
 
+// ---------- Commuter path animation ----------
+// A small color-coded dot per commuter walks their current shortest path
+// from start to destination, loops back, and replays. It's a hint, not a
+// simulation — "this is how people would move if the workday started now."
+// Speeds mirror the mechanics (rail tiles take 1/4 the time of walked
+// tiles) so the eye learns the cost model just by watching.
+app.style.position = 'relative';
+const animOverlay = document.createElementNS(SVG_NS, 'svg');
+animOverlay.setAttribute('class', 'commuter-overlay');
+animOverlay.setAttribute('aria-hidden', 'true');
+app.appendChild(animOverlay);
+
+const animDots = new Map();
+const animState = new Map();
+for (const c of LEVEL_1.commuters) {
+  const dot = document.createElementNS(SVG_NS, 'circle');
+  dot.setAttribute('r', '4');
+  dot.setAttribute('class', `commuter-dot dot-${c.id}`);
+  dot.setAttribute('cx', '-10');
+  dot.setAttribute('cy', '-10');
+  animOverlay.appendChild(dot);
+  animDots.set(c.id, dot);
+  // phaseOffset (0..1) staggers each commuter's start so they don't all
+  // step in lockstep when paths reset together.
+  animState.set(c.id, {
+    path: [], segIdx: 0, segT: 0, segDur: 0,
+    phaseOffset: Math.random(),
+  });
+}
+
+const TILE_DUR_WALK = 700; // ms per walked tile
+const TILE_DUR_RAIL = 175; // ms per rail tile (4x faster, matches cost model)
+const DEST_PAUSE = 700;    // ms held at destination before looping back
+
+const tileCenters = new Map(); // "x,y" -> {cx, cy} in #app local coords
+
+function recomputeTileCenters() {
+  const appBox = app.getBoundingClientRect();
+  if (appBox.width === 0) return;
+  animOverlay.setAttribute('viewBox', `0 0 ${appBox.width} ${appBox.height}`);
+  animOverlay.setAttribute('width', appBox.width);
+  animOverlay.setAttribute('height', appBox.height);
+  for (const [k, tile] of tileByKey) {
+    const r = tile.getBoundingClientRect();
+    tileCenters.set(k, {
+      cx: r.left - appBox.left + r.width / 2,
+      cy: r.top  - appBox.top  + r.height / 2,
+    });
+  }
+}
+
+function durEnter(x, y) {
+  return state.rail.has(`${x},${y}`) ? TILE_DUR_RAIL : TILE_DUR_WALK;
+}
+
+function samePath(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i][0] !== b[i][0] || a[i][1] !== b[i][1]) return false;
+  }
+  return true;
+}
+
+function updateAnimPaths(routes) {
+  for (const c of routes.commuters) {
+    const s = animState.get(c.id);
+    if (samePath(s.path, c.path)) {
+      // Path unchanged: keep walking, but durations may have changed (a
+      // tile under the walker became rail). Refresh current segment dur.
+      if (s.path.length >= 2 && s.segIdx < s.path.length - 1) {
+        const next = s.path[s.segIdx + 1];
+        s.segDur = durEnter(next[0], next[1]);
+      }
+      continue;
+    }
+    s.path = c.path.slice();
+    s.segIdx = 0;
+    // Negative segT = pre-roll pause before walking, scaled by phase offset
+    // so the four commuters don't all kick off at the same instant.
+    s.segT = -s.phaseOffset * 500;
+    if (s.path.length >= 2) {
+      const next = s.path[1];
+      s.segDur = durEnter(next[0], next[1]);
+    } else {
+      s.segDur = 0;
+    }
+  }
+}
+
+let animLastT = performance.now();
+function animTick(now) {
+  const dt = Math.min(64, now - animLastT); // clamp to avoid huge jumps on tab refocus
+  animLastT = now;
+
+  for (const [id, s] of animState) {
+    const dot = animDots.get(id);
+    if (!s.path || s.path.length < 2) {
+      dot.setAttribute('opacity', '0');
+      continue;
+    }
+
+    s.segT += dt;
+    // Walk forward through any completed segments this frame.
+    while (s.segDur > 0 && s.segT >= s.segDur) {
+      s.segT -= s.segDur;
+      s.segIdx++;
+      if (s.segIdx >= s.path.length - 1) {
+        // Arrived at destination; pause, then loop back to start.
+        s.segIdx = 0;
+        s.segT -= DEST_PAUSE;
+      }
+      const next = s.path[s.segIdx + 1];
+      s.segDur = durEnter(next[0], next[1]);
+    }
+
+    if (s.segT < 0) {
+      // Pre-roll / dest pause: park at the current "from" tile, invisible.
+      const from = s.path[s.segIdx];
+      const c = tileCenters.get(`${from[0]},${from[1]}`);
+      if (c) {
+        dot.setAttribute('cx', c.cx);
+        dot.setAttribute('cy', c.cy);
+      }
+      dot.setAttribute('opacity', '0');
+      continue;
+    }
+
+    const from = s.path[s.segIdx];
+    const to = s.path[s.segIdx + 1];
+    const a = tileCenters.get(`${from[0]},${from[1]}`);
+    const b = tileCenters.get(`${to[0]},${to[1]}`);
+    if (!a || !b) { dot.setAttribute('opacity', '0'); continue; }
+    const t = s.segDur > 0 ? s.segT / s.segDur : 0;
+    dot.setAttribute('cx', a.cx + (b.cx - a.cx) * t);
+    dot.setAttribute('cy', a.cy + (b.cy - a.cy) * t);
+    dot.setAttribute('opacity', '1');
+  }
+
+  requestAnimationFrame(animTick);
+}
+
+window.addEventListener('resize', recomputeTileCenters);
+
 function tileFromPoint(clientX, clientY) {
   const el = document.elementFromPoint(clientX, clientY);
   if (!el) return null;
@@ -434,6 +577,7 @@ function render() {
   }
 
   renderHud(currentRoutes);
+  updateAnimPaths(currentRoutes);
   // No auto-modal — the modal is gated behind the Submit button now,
   // so player chooses when to "lock in" their solution.
 }
@@ -621,10 +765,12 @@ function highlightCommuter(id) {
     const el = tileByKey.get(`${x},${y}`);
     if (el) el.classList.add('highlight');
   }
+  app.dataset.highlight = id;
 }
 
 function clearHighlight() {
   clearTileHighlights();
+  delete app.dataset.highlight;
 }
 
 function clearTileHighlights() {
@@ -785,3 +931,5 @@ function messageForResult(r) {
 }
 
 render();
+recomputeTileCenters();
+requestAnimationFrame(animTick);
