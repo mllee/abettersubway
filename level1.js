@@ -33,27 +33,27 @@ export const LEVEL_1 = {
   ],
 
   hardCap: 22,
-  gold:    14,
-  silver:  17,
-  bronze:  20,
+  gold:    18,
+  silver:  20,
+  bronze:  22,
   deadline: 22.0,
 
   walkCost: 2.0,
   railCost: 0.5,
 };
 
-// Walking-only baseline (zero rail), verified by computeRoutes:
+// Walking-only baseline (zero rail), with parks now impassable:
 //   A -> a : 40 min
 //   B -> b : 40 min
-//   C -> c : 24 min
-//   D -> d : 24 min
+//   C -> c : 40 min  (was 24; park box forces a long N/S detour)
+//   D -> d : 36 min  (was 24; same reason)
 //
-// All four are over the 22-min deadline at baseline, so all four need rail.
+// All four are well over the 22-min deadline, so all four need rail.
 //
-// Known optimum (multi-start search): 14 rails. Sample gold solution:
+// Known optimum (multi-start search, 60 kicks): 18 rails. Sample gold:
 //   row 4 corridor:  (3,4)..(13,4)   -- shared by A and B (11 tiles)
-//   C dabs:          (3,8), (13,8)   -- pull C off slow walk on row 8
-//   D dab:           (8,12)          -- helps D's vertical run
+//   col 5 ladder:    (5,5)..(5,9)    -- lifts C and D up to the corridor
+//   right shoulders: (13,5), (8,3)   -- B exit + D top dab
 //
-// Greedy alone lands at ~17 rails; the optimum requires noticing that A's
-// and B's whole demand can be satisfied by a single horizontal corridor.
+// Greedy lands at ~19; the optimum requires seeing that one column on the
+// west side of the park box services both C and D into the row-4 corridor.

@@ -7,10 +7,13 @@
 // Edge cost model (the one decision that determines every path):
 //   - Moving from u to adjacent v costs the *entering-tile* cost of v.
 //   - v is rail  -> level.railCost (e.g. 0.5)
-//   - v is open / start / dest / park -> level.walkCost (e.g. 2.0)
+//   - v is open / start / dest -> level.walkCost (e.g. 2.0)
+//   - v is park -> IMPASSABLE (commuters cannot enter; rail cannot be placed).
 //   - 4-connected grid (no diagonals).
-//   - Parks are walkable; parks block rail *placement* only.
 //   - Starting tile is not counted in cost; only traversed edges count.
+//
+// (Earlier draft had parks as walkable; flipped to barriers on user request
+// because "parks should block commutes too, not just rail.")
 
 import { LEVEL_1 } from './level1.js';
 
@@ -161,8 +164,9 @@ export function removeRail(state, x, y) {
  */
 export function computeRoutes(state) {
   const { level } = state;
+  const parkSet = new Set(level.parks.map(([x, y]) => `${x},${y}`));
   const commuters = level.commuters.map(c => {
-    const { time, path } = dijkstra(state, c.start, c.dest);
+    const { time, path } = dijkstra(state, c.start, c.dest, parkSet);
     return { id: c.id, time, path };
   });
 
@@ -183,7 +187,7 @@ export function computeRoutes(state) {
   return { commuters, allPass, railCount, medal, worst };
 }
 
-function dijkstra(state, src, dst) {
+function dijkstra(state, src, dst, parkSet) {
   const { level } = state;
   const W = level.width, H = level.height;
   const nNodes = W * H;
@@ -215,6 +219,7 @@ function dijkstra(state, src, dst) {
     for (const [dx, dy] of deltas) {
       const vx = ux + dx, vy = uy + dy;
       if (vx < 1 || vx > W || vy < 1 || vy > H) continue;
+      if (parkSet.has(`${vx},${vy}`)) continue; // parks are impassable
       const v = idx(vx, vy);
       if (visited[v]) continue;
       const cost = state.rail.has(`${vx},${vy}`) ? level.railCost : level.walkCost;
