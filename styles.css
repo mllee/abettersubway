@@ -128,6 +128,14 @@ body {
   box-shadow: 2px 2px 0 #2a1f1540;
 }
 
+#hud .hud-version {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  cursor: help;
+  margin-left: 4px;
+}
+
 /* ---------- Grid ---------- */
 
 .hud-item.version {
@@ -151,6 +159,9 @@ body {
   box-shadow: 4px 4px 0 var(--panel-shadow);
   align-self: start;
   justify-self: center;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
 }
 #app .tile { -webkit-user-drag: none; }
 
@@ -253,12 +264,22 @@ body {
 .time-badge[data-status="yellow"] { background: var(--yellow); color: #2a1f15; }
 .time-badge[data-status="red"]    { background: var(--red); }
 
-/* Hover highlight on path tiles. */
+/* Hover highlight on path tiles — soft inset, reads as a hint. */
 .tile.highlight {
-  outline: 3px solid var(--highlight);
-  outline-offset: -3px;
-  background-color: var(--highlight-fill);
-  z-index: 2;
+  box-shadow: inset 0 0 0 2px rgba(245, 180, 0, 0.55);
+  background-color: rgba(255, 216, 74, 0.28);
+  z-index: 1;
+}
+.tile.rail.highlight {
+  background-color: #4a4327;
+  box-shadow: inset 0 0 0 2px rgba(255, 216, 74, 0.7);
+}
+.tile.start.highlight,
+.tile.dest.highlight {
+  /* preserve the status ring on starts; just add a yellow inner accent */
+  box-shadow:
+    inset 0 0 0 3px currentColor,
+    inset 0 0 0 6px rgba(255, 216, 74, 0.45);
 }
 
 .tile.reject {

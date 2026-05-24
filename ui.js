@@ -12,6 +12,7 @@ import {
   removeRail,
   computeRoutes,
 } from './mechanics.js';
+import { VERSION, BUILD } from './version.js';
 
 const hud = document.getElementById('hud');
 const app = document.getElementById('app');
@@ -279,8 +280,14 @@ for (let y = 1; y <= LEVEL_1.height; y++) {
       personTileById.set(id, div);
       timeBadgeById.set(id, badge);
 
-      div.addEventListener('mouseenter', () => highlightCommuter(id));
-      div.addEventListener('mouseleave', clearHighlight);
+      div.addEventListener('mouseenter', () => {
+        if (dragMode) return; // don't strobe the highlight while painting
+        highlightCommuter(id);
+      });
+      div.addEventListener('mouseleave', () => {
+        if (dragMode) return;
+        clearHighlight();
+      });
     } else if (destByKey.has(k)) {
       const lower = destByKey.get(k);
       const upper = lower.toUpperCase();
@@ -289,60 +296,52 @@ for (let y = 1; y <= LEVEL_1.height; y++) {
       div.dataset.commuter = upper;
       div.appendChild(buildingSprite(meta.destType));
 
-      div.addEventListener('mouseenter', () => highlightCommuter(upper));
-      div.addEventListener('mouseleave', clearHighlight);
+      div.addEventListener('mouseenter', () => {
+        if (dragMode) return;
+        highlightCommuter(upper);
+      });
+      div.addEventListener('mouseleave', () => {
+        if (dragMode) return;
+        clearHighlight();
+      });
     }
 
-    div.addEventListener('mousedown', (e) => onTileMouseDown(e, x, y, div));
-    div.addEventListener('mouseenter', () => onTileMouseEnter(x, y));
     app.appendChild(div);
     tileByKey.set(k, div);
   }
 }
 
-window.addEventListener('mouseup', () => { dragMode = null; });
-window.addEventListener('blur',    () => { dragMode = null; });
-
-// ---------- Render ----------
-
+// Drag-to-paint using pointer events on the grid container plus
+// elementFromPoint. mouseenter on sibling tiles doesn't fire reliably
+// during a real drag on Chrome/Mac, so we delegate at the #app level.
 let currentRoutes = null;
 let lastAllPass = false;
-let dragMode = null; // 'place' | 'remove' | null
+let dragMode = null;       // 'place' | 'remove' | null
+let lastDragKey = null;    // last "x,y" we acted on, to avoid double-apply
 
-function onTileMouseDown(e, x, y, el) {
-  if (e.button !== 0) return; // left-click only
-  e.preventDefault();
-  const k = `${x},${y}`;
-  if (state.rail.has(k)) {
-    dragMode = 'remove';
-    removeRail(state, x, y);
-    render();
-    return;
-  }
-  dragMode = 'place';
-  const res = placeRail(state, x, y);
-  if (!res.ok) {
-    // First-tile rejection: flash. Subsequent sweep rejects are silent
-    // so dragging across parks/starts/dests doesn't strobe the grid.
-    el.classList.remove('reject');
-    void el.offsetWidth;
-    el.classList.add('reject');
-    setTimeout(() => el.classList.remove('reject'), 320);
-    return;
-  }
-  render();
+function tileFromPoint(clientX, clientY) {
+  const el = document.elementFromPoint(clientX, clientY);
+  if (!el) return null;
+  // Could be the sprite-svg or time-badge inside a tile — climb to the tile.
+  return el.closest('.tile');
 }
 
-function onTileMouseEnter(x, y) {
-  if (!dragMode) return;
+function applyAt(el, isFirstPress) {
+  const x = Number(el.dataset.x);
+  const y = Number(el.dataset.y);
   const k = `${x},${y}`;
   if (k === lastDragKey) return false;
   lastDragKey = k;
   if (dragMode === 'place' && !state.rail.has(k)) {
-    if (placeRail(state, x, y).ok) changed = true;
-  } else if (dragMode === 'remove' && state.rail.has(k)) {
-    removeRail(state, x, y);
-    changed = true;
+    const res = placeRail(state, x, y);
+    if (res.ok) return true;
+    if (isFirstPress) {
+      el.classList.remove('reject');
+      void el.offsetWidth;
+      el.classList.add('reject');
+      setTimeout(() => el.classList.remove('reject'), 320);
+    }
+    return false;
   }
   if (dragMode === 'remove' && state.rail.has(k)) {
     removeRail(state, x, y);
@@ -350,6 +349,44 @@ function onTileMouseEnter(x, y) {
   }
   return false;
 }
+
+function onAppPointerDown(e) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  const el = e.target.closest && e.target.closest('.tile');
+  if (!el) return;
+  e.preventDefault();
+  // Release implicit pointer capture so pointermove fires on sibling tiles,
+  // not just on the originating tile.
+  if (e.target.releasePointerCapture) {
+    try { e.target.releasePointerCapture(e.pointerId); } catch {}
+  }
+  const x = Number(el.dataset.x);
+  const y = Number(el.dataset.y);
+  const k = `${x},${y}`;
+  dragMode = state.rail.has(k) ? 'remove' : 'place';
+  lastDragKey = null;
+  clearTileHighlights();
+  if (applyAt(el, true)) render();
+}
+
+function onAppPointerMove(e) {
+  if (!dragMode) return;
+  const el = tileFromPoint(e.clientX, e.clientY);
+  if (!el) return;
+  if (applyAt(el, false)) render();
+}
+
+function endDrag() {
+  dragMode = null;
+  lastDragKey = null;
+}
+
+app.addEventListener('pointerdown', onAppPointerDown);
+app.addEventListener('pointermove', onAppPointerMove);
+window.addEventListener('pointerup', endDrag);
+window.addEventListener('pointercancel', endDrag);
+window.addEventListener('blur', endDrag);
+app.addEventListener('dragstart', (e) => e.preventDefault());
 
 function clearAllRail() {
   if (state.rail.size === 0) return;
@@ -421,6 +458,12 @@ function renderHud(r) {
   clearBtn.disabled = r.railCount === 0;
   clearBtn.addEventListener('click', clearAllRail);
   hud.appendChild(clearBtn);
+
+  const ver = document.createElement('span');
+  ver.className = 'hud-version';
+  ver.title = `Build ${BUILD}. If this number lags behind GitHub, Pages hasn't redeployed yet — hard-refresh.`;
+  ver.textContent = `v${VERSION}`;
+  hud.appendChild(ver);
 
   hud.dataset.medal = r.medal;
 }
