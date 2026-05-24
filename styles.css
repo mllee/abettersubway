@@ -241,26 +241,12 @@ body {
 .tile.start-C, .tile.dest-c { --accent: var(--commuter-C); }
 .tile.start-D, .tile.dest-d { --accent: var(--commuter-D); }
 
-/* Rail tile: dark gravel + brown ties + silver rails. */
+/* Rail tile: dark gravel base; the actual rails + ties are drawn by the
+   neighbor-aware <svg.rail-svg> child added in ui.js. No background-image
+   here — the old gradient pattern leaked through and competed with the
+   SVG, producing a double-track artifact. */
 .tile.rail {
   background-color: #2a1f15;
-  background-image:
-    linear-gradient(to bottom,
-      transparent 0 12px,
-      #f4f4f8 12px 14px,
-      #b8b8c0 14px 17px,
-      #6a6a72 17px 18px,
-      transparent 18px 100%),
-    linear-gradient(to bottom,
-      transparent 0 26px,
-      #f4f4f8 26px 28px,
-      #b8b8c0 28px 31px,
-      #6a6a72 31px 32px,
-      transparent 32px 100%),
-    repeating-linear-gradient(to right,
-      #8b5a2b 0 6px,
-      #5a3a1a 6px 7px,
-      transparent 7px 14px);
   box-shadow:
     inset 0 -2px 0 #00000060,
     inset 0 1px 0 #ffffff15;
