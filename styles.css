@@ -17,7 +17,12 @@
   --bg-pattern: #ead9a2;
 
   --panel: #fff5e1;
-  --panel-border: #6b4423;
+  /* --panel-border: lighter warm brown for frame strokes around #hud,
+     #app, modal, tile rings, etc. — gives content room to breathe.
+     --btn-bg keeps the old heavy brown for button fills so labels stay
+     punchy against cream text. */
+  --panel-border: #b08a64;
+  --btn-bg: #6b4423;
   --panel-shadow: #2a1f1530;
 
   --text: #2a1f15;
@@ -171,7 +176,7 @@ body {
   font-family: "VT323", "Press Start 2P", ui-monospace, monospace;
   font-size: 17px;
   line-height: 1;
-  background: var(--panel-border);
+  background: var(--btn-bg);
   color: var(--panel);
   border: 2px solid #2a1f15;
   border-radius: 3px;
@@ -679,7 +684,7 @@ body {
 .modal-btn {
   font-family: "VT323", "Press Start 2P", ui-monospace, monospace;
   font-size: 20px;
-  background: var(--panel-border);
+  background: var(--btn-bg);
   color: var(--panel);
   border: 3px solid #2a1f15;
   border-radius: 4px;
