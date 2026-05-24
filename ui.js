@@ -413,7 +413,7 @@ function render() {
   }
 
   renderHud(currentRoutes);
-  renderPlaceholder();
+  renderCommuterList();
 
   // Success modal: trigger once per false→true transition of allPass.
   if (currentRoutes.allPass && !lastAllPass) {
@@ -482,114 +482,73 @@ function statusFor(time) {
 
 // ---------- Sidebar ----------
 
-function renderPlaceholder() {
+function renderCommuterList() {
   sideEl.innerHTML = '';
   sideEl.classList.remove('detail');
 
-  const wrap = document.createElement('div');
-  wrap.className = 'placeholder';
-
   const title = document.createElement('div');
-  title.className = 'ph-title';
-  title.textContent = 'HOVER A COMMUTER';
-  wrap.appendChild(title);
+  title.className = 'side-title';
+  title.textContent = 'COMMUTERS';
+  sideEl.appendChild(title);
 
-  const sub = document.createElement('div');
-  sub.className = 'ph-sub';
-  sub.textContent =
-    'Each person on the grid has a commute. Hover one to see who, where, and how long.';
-  wrap.appendChild(sub);
-
-  const legend = document.createElement('div');
-  legend.className = 'ph-legend';
-
-  const rows = [
-    [treeSprite(),            'park — no rail allowed'],
-    [makeRailSwatch(),         'rail tile — click to place'],
-    [personSprite('A'),       'commuter — going somewhere'],
-    [buildingSprite('office'),'destination — work or school'],
-  ];
-  for (const [icon, label] of rows) {
-    const row = document.createElement('div');
-    const sp = document.createElement('span');
-    sp.className = 'lg-sprite';
-    sp.appendChild(icon);
-    const tx = document.createElement('span');
-    tx.textContent = label;
-    row.appendChild(sp);
-    row.appendChild(tx);
-    legend.appendChild(row);
-  }
-  wrap.appendChild(legend);
-  sideEl.appendChild(wrap);
-}
-
-function makeRailSwatch() {
-  const div = document.createElement('span');
-  div.className = 'rail-swatch';
-  return div;
-}
-
-function showDetail(id) {
   if (!currentRoutes) return;
-  const c = currentRoutes.commuters.find((x) => x.id === id);
-  if (!c) return;
-  const meta = COMMUTER_META[id];
-  const status = statusFor(c.time);
-  const deadline = LEVEL_1.deadline;
-  const delta = c.time - deadline;
-  const deltaStr = !Number.isFinite(c.time)
-    ? 'no route — stuck'
-    : delta > 0
-      ? `${delta.toFixed(1)} min late`
-      : delta === 0
-        ? 'right on the bell'
-        : `${Math.abs(delta).toFixed(1)} min to spare`;
 
-  sideEl.innerHTML = '';
-  sideEl.classList.add('detail');
+  const list = document.createElement('div');
+  list.className = 'commuter-list';
 
-  const card = document.createElement('div');
-  card.className = 'detail-card';
-  card.dataset.status = status;
+  for (const c of currentRoutes.commuters) {
+    const meta = COMMUTER_META[c.id];
+    const status = statusFor(c.time);
 
-  const header = document.createElement('div');
-  header.className = 'detail-header';
-  const ps = document.createElement('span');
-  ps.className = 'detail-sprite';
-  ps.appendChild(personSprite(id));
-  const arrow = document.createElement('span');
-  arrow.className = 'detail-arrow';
-  arrow.textContent = '→';
-  const ds = document.createElement('span');
-  ds.className = 'detail-sprite';
-  ds.appendChild(buildingSprite(meta.destType));
-  header.appendChild(ps);
-  header.appendChild(arrow);
-  header.appendChild(ds);
-  card.appendChild(header);
+    const row = document.createElement('div');
+    row.className = 'commuter-row';
+    row.dataset.id = c.id;
+    row.dataset.status = status;
 
-  const label = document.createElement('div');
-  label.className = 'detail-label';
-  label.textContent = `Commuter ${id} → ${meta.destLabel}`;
-  card.appendChild(label);
+    const swatch = document.createElement('span');
+    swatch.className = 'cr-swatch';
+    swatch.appendChild(personSprite(c.id));
 
-  const time = document.createElement('div');
-  time.className = 'detail-time';
-  time.textContent = formatTime(c.time);
-  card.appendChild(time);
+    const info = document.createElement('div');
+    info.className = 'cr-info';
+    const name = document.createElement('div');
+    name.className = 'cr-name';
+    name.textContent = `Commuter ${c.id}`;
+    const dest = document.createElement('div');
+    dest.className = 'cr-dest';
+    dest.textContent = `→ ${meta.destLabel}`;
+    info.appendChild(name);
+    info.appendChild(dest);
 
-  const delt = document.createElement('div');
-  delt.className = 'detail-delta';
-  delt.textContent = deltaStr;
-  card.appendChild(delt);
+    const time = document.createElement('div');
+    time.className = 'cr-time';
+    time.textContent = formatTime(c.time);
 
-  const dl = document.createElement('div');
-  dl.className = 'detail-deadline';
-  dl.textContent = `Deadline: ${deadline.toFixed(0)} min`;
-  card.appendChild(dl);
+    row.appendChild(swatch);
+    row.appendChild(info);
+    row.appendChild(time);
 
-  sideEl.appendChild(card);
+    row.addEventListener('mouseenter', () => {
+      if (dragMode) return;
+      highlightCommuter(c.id);
+    });
+    row.addEventListener('mouseleave', () => {
+      if (dragMode) return;
+      // Don't re-render the list (it's already there) — just drop the
+      // hover state + tile highlights.
+      clearTileHighlights();
+      for (const r of sideEl.querySelectorAll('.commuter-row')) {
+        r.classList.remove('active');
+      }
+    });
+    list.appendChild(row);
+  }
+  sideEl.appendChild(list);
+
+  const hint = document.createElement('div');
+  hint.className = 'side-hint';
+  hint.textContent = 'Hover a row (or a person on the grid) to see their route.';
+  sideEl.appendChild(hint);
 }
 
 function highlightCommuter(id) {
@@ -601,12 +560,17 @@ function highlightCommuter(id) {
     const el = tileByKey.get(`${x},${y}`);
     if (el) el.classList.add('highlight');
   }
-  showDetail(id);
+  // Mark the matching sidebar row as active.
+  for (const row of sideEl.querySelectorAll('.commuter-row')) {
+    row.classList.toggle('active', row.dataset.id === id);
+  }
 }
 
 function clearHighlight() {
   clearTileHighlights();
-  renderPlaceholder();
+  for (const row of sideEl.querySelectorAll('.commuter-row')) {
+    row.classList.remove('active');
+  }
 }
 
 function clearTileHighlights() {
