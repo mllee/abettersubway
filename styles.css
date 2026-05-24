@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
 
 :root {
   --tile-size: 44px;
@@ -104,10 +104,10 @@ body {
   margin: 0;
   flex: 1;
   min-width: 0;
-  font-family: "Press Start 2P", ui-monospace, monospace;
-  font-size: 14px;
-  line-height: 1.5;
-  letter-spacing: 0.4px;
+  font-family: "VT323", "Press Start 2P", ui-monospace, monospace;
+  font-size: 24px;
+  line-height: 1.2;
+  letter-spacing: 1px;
   color: var(--text);
 }
 #hud .hud-title .deadline {
@@ -141,15 +141,16 @@ body {
 }
 
 #hud .hud-btn {
-  font-family: "Press Start 2P", ui-monospace, monospace;
-  font-size: 10px;
+  font-family: "VT323", "Press Start 2P", ui-monospace, monospace;
+  font-size: 17px;
+  line-height: 1;
   background: var(--panel-border);
   color: var(--panel);
   border: 2px solid #2a1f15;
   border-radius: 3px;
-  padding: 8px 12px;
+  padding: 6px 12px;
   cursor: pointer;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
   box-shadow: 2px 2px 0 #2a1f15;
   transition: transform 60ms ease, box-shadow 60ms ease;
 }
@@ -165,8 +166,8 @@ body {
 }
 
 #hud .hud-btn.primary {
-  font-size: 13px;
-  padding: 10px 18px;
+  font-size: 20px;
+  padding: 8px 18px;
   background: var(--commuter-A);
   border-color: #2a1f15;
   color: #fff;
@@ -365,10 +366,10 @@ body {
 }
 .hover-card .hc-sprite .sprite-svg { width: 36px; height: 40px; }
 .hover-card .hc-name {
-  font-family: "Press Start 2P", ui-monospace, monospace;
-  font-size: 11px;
+  font-family: "VT323", "Press Start 2P", ui-monospace, monospace;
+  font-size: 18px;
   color: var(--accent, var(--text));
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
 }
 .hover-card .hc-dest {
   font-size: 11px;
@@ -377,9 +378,10 @@ body {
 }
 .hover-card .hc-time {
   text-align: center;
-  font: 700 22px "Press Start 2P", ui-monospace, monospace;
+  font: 500 30px "VT323", "Press Start 2P", ui-monospace, monospace;
   letter-spacing: 1px;
   margin-top: 4px;
+  line-height: 1;
 }
 .hover-card[data-status="green"]  .hc-time { color: var(--green); }
 .hover-card[data-status="yellow"] .hc-time { color: var(--yellow); }
@@ -472,20 +474,21 @@ body {
 .result-modal[data-medal="bronze"] .medal-stars { color: var(--bronze-medal); }
 
 .medal-label {
-  font-family: "Press Start 2P", ui-monospace, monospace;
-  font-size: 18px;
+  font-family: "VT323", "Press Start 2P", ui-monospace, monospace;
+  font-size: 28px;
   margin-top: 6px;
-  letter-spacing: 2px;
+  letter-spacing: 3px;
 }
 .medal-label[data-medal="gold"]   { color: var(--gold-medal); }
 .medal-label[data-medal="silver"] { color: #8a8a8a; }
 .medal-label[data-medal="bronze"] { color: var(--bronze-medal); }
 
 .modal-title {
-  font-family: "Press Start 2P", ui-monospace, monospace;
-  font-size: 16px;
+  font-family: "VT323", "Press Start 2P", ui-monospace, monospace;
+  font-size: 26px;
   margin: 0 0 18px;
   color: var(--text);
+  letter-spacing: 1px;
 }
 .result-modal[data-medal="fail"] .modal-title { color: var(--red); }
 
@@ -508,14 +511,15 @@ body {
 }
 .score-row .score-label {
   text-align: left;
-  font-family: "Press Start 2P", ui-monospace, monospace;
-  font-size: 9px;
+  font-family: "VT323", "Press Start 2P", ui-monospace, monospace;
+  font-size: 16px;
   color: var(--text-dim);
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
 }
 .score-row .score-num {
-  font: 700 22px "Press Start 2P", ui-monospace, monospace;
+  font: 500 30px "VT323", "Press Start 2P", ui-monospace, monospace;
   color: var(--text);
+  line-height: 1;
 }
 .score-row.best-row .score-num { color: var(--gold-medal); }
 .score-row .score-unit {
@@ -552,17 +556,18 @@ body {
 }
 
 .modal-btn {
-  font-family: "Press Start 2P", ui-monospace, monospace;
-  font-size: 12px;
+  font-family: "VT323", "Press Start 2P", ui-monospace, monospace;
+  font-size: 20px;
   background: var(--panel-border);
   color: var(--panel);
   border: 3px solid #2a1f15;
   border-radius: 4px;
-  padding: 12px 22px;
+  padding: 10px 22px;
   cursor: pointer;
   letter-spacing: 1px;
   box-shadow: 3px 3px 0 #2a1f15;
   transition: transform 60ms ease, box-shadow 60ms ease;
+  line-height: 1;
 }
 .modal-btn:hover { background: #8a5a30; }
 .modal-btn:active {
