@@ -29,10 +29,10 @@ const state = createState(LEVEL_1);
 // so who-goes-where reads at a glance. Kept in sync with --commuter-*
 // CSS vars in styles.css.
 const COMMUTER_META = {
-  A: { destLabel: 'work', wall: '#c84a3a', roofDark: '#7a2418', roofLight: '#e36655' },
-  B: { destLabel: 'work', wall: '#3a6fb5', roofDark: '#1a3a78', roofLight: '#5e92d5' },
-  C: { destLabel: 'work', wall: '#2a9d8f', roofDark: '#10665a', roofLight: '#4ec0b0' },
-  D: { destLabel: 'work', wall: '#8a4a9a', roofDark: '#4a1a5c', roofLight: '#aa6ab8' },
+  A: { name: 'Zaven',   destLabel: 'work', wall: '#c84a3a', roofDark: '#7a2418', roofLight: '#e36655' },
+  B: { name: 'Wayne',   destLabel: 'work', wall: '#3a6fb5', roofDark: '#1a3a78', roofLight: '#5e92d5' },
+  C: { name: 'Matt',    destLabel: 'work', wall: '#2a9d8f', roofDark: '#10665a', roofLight: '#4ec0b0' },
+  D: { name: 'Anthony', destLabel: 'work', wall: '#8a4a9a', roofDark: '#4a1a5c', roofLight: '#aa6ab8' },
 };
 
 // ---------- SVG pixel sprites ----------
@@ -663,7 +663,7 @@ function showHoverCard(id, anchorEl) {
   const info = document.createElement('div');
   const name = document.createElement('div');
   name.className = 'hc-name';
-  name.textContent = `Commuter ${id}`;
+  name.textContent = meta.name;
   const dest = document.createElement('div');
   dest.className = 'hc-dest';
   dest.textContent = `→ ${meta.destLabel}`;
@@ -870,7 +870,7 @@ function buildLateList(r) {
       row.className = 'late-row';
       row.dataset.id = c.id;
       row.innerHTML =
-        `<span>Commuter ${c.id}</span>` +
+        `<span>${COMMUTER_META[c.id]?.name ?? c.id}</span>` +
         `<span class="lr-time">${formatTime(c.time)}</span>`;
       list.appendChild(row);
     }
