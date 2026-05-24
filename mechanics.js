@@ -7,13 +7,16 @@
 // Edge cost model (the one decision that determines every path):
 //   - Moving from u to adjacent v costs the *entering-tile* cost of v.
 //   - v is rail  -> level.railCost (e.g. 0.5)
-//   - v is open / start / dest -> level.walkCost (e.g. 2.0)
-//   - v is park -> IMPASSABLE (commuters cannot enter; rail cannot be placed).
+//   - v is open / own start / own dest -> level.walkCost (e.g. 2.0)
+//   - v is park -> IMPASSABLE.
+//   - v is ANOTHER commuter's start or dest -> IMPASSABLE for this commuter
+//     (you can't walk through a workplace that isn't yours).
 //   - 4-connected grid (no diagonals).
 //   - Starting tile is not counted in cost; only traversed edges count.
 //
-// (Earlier draft had parks as walkable; flipped to barriers on user request
-// because "parks should block commutes too, not just rail.")
+// (Park and foreign-workplace barriers were flipped on from "walkable" on
+// user request — commuters should not be able to cut through parks or
+// each other's destinations.)
 
 import { LEVEL_1 } from './level1.js';
 
@@ -166,7 +169,17 @@ export function computeRoutes(state) {
   const { level } = state;
   const parkSet = new Set(level.parks.map(([x, y]) => `${x},${y}`));
   const commuters = level.commuters.map(c => {
-    const { time, path } = dijkstra(state, c.start, c.dest, parkSet);
+    // Build per-commuter blocked set: parks + every other commuter's start/dest.
+    const blocked = new Set(parkSet);
+    const ownStart = `${c.start[0]},${c.start[1]}`;
+    const ownDest = `${c.dest[0]},${c.dest[1]}`;
+    for (const other of level.commuters) {
+      const s = `${other.start[0]},${other.start[1]}`;
+      const d = `${other.dest[0]},${other.dest[1]}`;
+      if (s !== ownStart && s !== ownDest) blocked.add(s);
+      if (d !== ownStart && d !== ownDest) blocked.add(d);
+    }
+    const { time, path } = dijkstra(state, c.start, c.dest, blocked);
     return { id: c.id, time, path };
   });
 
@@ -187,7 +200,7 @@ export function computeRoutes(state) {
   return { commuters, allPass, railCount, medal, worst };
 }
 
-function dijkstra(state, src, dst, parkSet) {
+function dijkstra(state, src, dst, blocked) {
   const { level } = state;
   const W = level.width, H = level.height;
   const nNodes = W * H;
@@ -219,7 +232,7 @@ function dijkstra(state, src, dst, parkSet) {
     for (const [dx, dy] of deltas) {
       const vx = ux + dx, vy = uy + dy;
       if (vx < 1 || vx > W || vy < 1 || vy > H) continue;
-      if (parkSet.has(`${vx},${vy}`)) continue; // parks are impassable
+      if (blocked.has(`${vx},${vy}`)) continue; // parks + other commuters' tiles
       const v = idx(vx, vy);
       if (visited[v]) continue;
       const cost = state.rail.has(`${vx},${vy}`) ? level.railCost : level.walkCost;
