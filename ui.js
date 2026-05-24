@@ -834,13 +834,29 @@ function buildScoreBlock(r) {
     `<span class="score-unit">rail tiles</span>`;
   block.appendChild(your);
 
-  const best = document.createElement('div');
-  best.className = 'score-row best-row';
-  best.innerHTML =
-    `<span class="score-label">BEST KNOWN</span>` +
-    `<span class="score-num">${LEVEL_1.gold}</span>` +
-    `<span class="score-unit">rail tiles</span>`;
-  block.appendChild(best);
+  // Tier table — show all three thresholds so the player sees both what
+  // they earned and what's needed to climb. The row matching r.medal gets
+  // a "← YOU" tag + emphasized styling.
+  const tiers = document.createElement('div');
+  tiers.className = 'tier-table';
+  const rows = [
+    { medal: 'gold',   label: 'GOLD',   cap: LEVEL_1.gold },
+    { medal: 'silver', label: 'SILVER', cap: LEVEL_1.silver },
+    { medal: 'bronze', label: 'BRONZE', cap: LEVEL_1.bronze },
+  ];
+  for (const t of rows) {
+    const row = document.createElement('div');
+    row.className = 'tier-row';
+    row.dataset.medal = t.medal;
+    if (t.medal === r.medal) row.classList.add('current');
+    row.innerHTML =
+      `<span class="tier-star">★</span>` +
+      `<span class="tier-label">${t.label}</span>` +
+      `<span class="tier-cap">${t.cap} tiles or fewer</span>` +
+      `<span class="tier-you">${t.medal === r.medal ? '← YOU' : ''}</span>`;
+    tiers.appendChild(row);
+  }
+  block.appendChild(tiers);
 
   return block;
 }
