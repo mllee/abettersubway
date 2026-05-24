@@ -92,4 +92,12 @@ export const LEVEL_2 = {
 
   walkCost: 2.0,
   railCost: 0.5,
+
+  // Canonical 15-tile gold solution surfaced via the "Reveal best
+  // solution" button. Found by tools/solve.mjs (multi-start hillclimb;
+  // 27 of 30 trials hit 15, matching the designer's gold target).
+  goldSolution: [
+    [5, 3], [8, 3], [5, 4], [5, 5], [5, 6], [5, 7], [5, 8], [5, 9],
+    [5, 10], [5, 11], [6, 11], [7, 11], [8, 11], [8, 12], [8, 13],
+  ],
 };
