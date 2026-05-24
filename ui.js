@@ -42,52 +42,80 @@ for (let y = 1; y <= level.height; y++) {
       div.dataset.commuter = destMap.get(k);
       div.textContent = destMap.get(k).toLowerCase();
     }
-    div.addEventListener('mousedown', onTileMouseDown);
-    div.addEventListener('mouseenter', onTileMouseEnter);
     app.appendChild(div);
     tiles.set(k, div);
   }
 }
 
-let dragMode = null; // 'place' | 'remove' | null
+// Drag-to-paint. Uses pointer events on the grid container plus
+// elementFromPoint to find the tile under the cursor, because on Chrome
+// (Mac) a mousedown on a tile implicitly captures subsequent move events
+// to that tile — mouseenter on siblings doesn't fire during a real drag.
+let dragMode = null;       // 'place' | 'remove' | null
+let lastDragKey = null;    // last "x,y" we acted on, to avoid double-apply
 
-function onTileMouseDown(e) {
-  if (e.button !== 0) return; // left click only
-  e.preventDefault();
-  const x = Number(e.currentTarget.dataset.x);
-  const y = Number(e.currentTarget.dataset.y);
-  const k = `${x},${y}`;
-  if (state.rail.has(k)) {
-    dragMode = 'remove';
-    removeRail(state, x, y);
-  } else {
-    dragMode = 'place';
-    const res = placeRail(state, x, y);
-    if (!res.ok) flashReject(e.currentTarget, res.reason);
-  }
-  render();
+function tileFromPoint(clientX, clientY) {
+  const el = document.elementFromPoint(clientX, clientY);
+  if (!el || !el.classList || !el.classList.contains('tile')) return null;
+  return el;
 }
 
-function onTileMouseEnter(e) {
-  if (!dragMode) return;
-  const x = Number(e.currentTarget.dataset.x);
-  const y = Number(e.currentTarget.dataset.y);
+function applyAt(el, isFirstPress) {
+  const x = Number(el.dataset.x);
+  const y = Number(el.dataset.y);
   const k = `${x},${y}`;
-  let changed = false;
+  if (k === lastDragKey) return false;
+  lastDragKey = k;
   if (dragMode === 'place' && !state.rail.has(k)) {
-    if (placeRail(state, x, y).ok) changed = true;
-    // silent on reject during drag — sweeping over parks/starts/dests
-    // shouldn't flash the whole grid red.
-  } else if (dragMode === 'remove' && state.rail.has(k)) {
-    removeRail(state, x, y);
-    changed = true;
+    const res = placeRail(state, x, y);
+    if (res.ok) return true;
+    if (isFirstPress) flashReject(el, res.reason);
+    return false;
   }
-  if (changed) render();
+  if (dragMode === 'remove' && state.rail.has(k)) {
+    removeRail(state, x, y);
+    return true;
+  }
+  return false;
 }
 
-window.addEventListener('mouseup', () => { dragMode = null; });
-// If the mouse leaves the window mid-drag, cancel.
-window.addEventListener('blur', () => { dragMode = null; });
+function onAppPointerDown(e) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  const el = e.target.closest && e.target.closest('.tile');
+  if (!el) return;
+  e.preventDefault();
+  // Release implicit pointer capture so pointermove fires on siblings,
+  // not just on the originating tile.
+  if (e.target.releasePointerCapture) {
+    try { e.target.releasePointerCapture(e.pointerId); } catch {}
+  }
+  const x = Number(el.dataset.x);
+  const y = Number(el.dataset.y);
+  const k = `${x},${y}`;
+  dragMode = state.rail.has(k) ? 'remove' : 'place';
+  lastDragKey = null;
+  if (applyAt(el, true)) render();
+}
+
+function onAppPointerMove(e) {
+  if (!dragMode) return;
+  const el = tileFromPoint(e.clientX, e.clientY);
+  if (!el) return;
+  if (applyAt(el, false)) render();
+}
+
+function endDrag() {
+  dragMode = null;
+  lastDragKey = null;
+}
+
+app.addEventListener('pointerdown', onAppPointerDown);
+app.addEventListener('pointermove', onAppPointerMove);
+window.addEventListener('pointerup', endDrag);
+window.addEventListener('pointercancel', endDrag);
+window.addEventListener('blur', endDrag);
+// Prevent native drag of any descendant element (safety belt).
+app.addEventListener('dragstart', (e) => e.preventDefault());
 
 function clearAllRail() {
   if (state.rail.size === 0) return;

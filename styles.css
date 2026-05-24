@@ -83,7 +83,10 @@ body {
   width: max-content;
   height: max-content;
   user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
 }
+#app .tile { -webkit-user-drag: none; }
 
 .tile {
   background: var(--tile-bg);
