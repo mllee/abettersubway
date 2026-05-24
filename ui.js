@@ -16,7 +16,11 @@ import { VERSION, BUILD } from './version.js';
 
 const hud = document.getElementById('hud');
 const app = document.getElementById('app');
-const sideEl = document.getElementById('commuters');
+// #commuters is hidden in CSS — we use a floating hover-card now instead.
+const hoverCard = document.createElement('div');
+hoverCard.className = 'hover-card';
+hoverCard.style.display = 'none';
+document.body.appendChild(hoverCard);
 
 const state = createState(LEVEL_1);
 
@@ -283,12 +287,14 @@ for (let y = 1; y <= LEVEL_1.height; y++) {
       timeBadgeById.set(id, badge);
 
       div.addEventListener('mouseenter', () => {
-        if (dragMode) return; // don't strobe the highlight while painting
+        if (dragMode) return;
         highlightCommuter(id);
+        showHoverCard(id, div);
       });
       div.addEventListener('mouseleave', () => {
         if (dragMode) return;
         clearHighlight();
+        hideHoverCard();
       });
     } else if (destByKey.has(k)) {
       const lower = destByKey.get(k);
@@ -301,10 +307,12 @@ for (let y = 1; y <= LEVEL_1.height; y++) {
       div.addEventListener('mouseenter', () => {
         if (dragMode) return;
         highlightCommuter(upper);
+        showHoverCard(upper, div);
       });
       div.addEventListener('mouseleave', () => {
         if (dragMode) return;
         clearHighlight();
+        hideHoverCard();
       });
     }
 
@@ -317,7 +325,6 @@ for (let y = 1; y <= LEVEL_1.height; y++) {
 // elementFromPoint. mouseenter on sibling tiles doesn't fire reliably
 // during a real drag on Chrome/Mac, so we delegate at the #app level.
 let currentRoutes = null;
-let lastAllPass = false;
 let dragMode = null;       // 'place' | 'remove' | null
 let lastDragKey = null;    // last "x,y" we acted on, to avoid double-apply
 
@@ -427,59 +434,81 @@ function render() {
   }
 
   renderHud(currentRoutes);
-  renderCommuterList();
-
-  // Success modal: trigger once per false→true transition of allPass.
-  if (currentRoutes.allPass && !lastAllPass) {
-    showSuccessModal(currentRoutes);
-  }
-  lastAllPass = currentRoutes.allPass;
+  // No auto-modal — the modal is gated behind the Submit button now,
+  // so player chooses when to "lock in" their solution.
 }
 
 function renderHud(r) {
-  const onTime = r.commuters.filter((c) => c.time <= LEVEL_1.deadline).length;
-  const total = r.commuters.length;
   hud.innerHTML = '';
+  const deadline = LEVEL_1.deadline;
 
-  const title = document.createElement('span');
+  // Top row: the puzzle's prompt + Submit on the right.
+  const top = document.createElement('div');
+  top.className = 'hud-row top';
+
+  const title = document.createElement('h1');
   title.className = 'hud-title';
-  title.textContent = 'A BETTER SUBWAY';
-  hud.appendChild(title);
+  title.innerHTML =
+    `Add train tracks to help everyone get to work in ` +
+    `<span class="deadline">${deadline} minutes</span>!`;
+  top.appendChild(title);
 
-  const parts = [
-    `${onTime}/${total} on time`,
-    `Rail ${r.railCount}/${LEVEL_1.hardCap}`,
-    `Gold ${LEVEL_1.gold}`,
-    `Medal: ${r.medal.toUpperCase()}`,
-  ];
+  const submit = document.createElement('button');
+  submit.className = 'hud-btn primary';
+  submit.textContent = 'SUBMIT';
+  submit.addEventListener('click', () => showResultModal(currentRoutes));
+  top.appendChild(submit);
 
-  parts.forEach((p) => {
-    const sep = document.createElement('span');
-    sep.className = 'hud-sep';
-    sep.textContent = '·';
-    hud.appendChild(sep);
+  hud.appendChild(top);
 
-    const span = document.createElement('span');
-    span.className = 'hud-item';
-    if (p.startsWith('Medal')) span.dataset.medal = r.medal;
-    span.textContent = p;
-    hud.appendChild(span);
-  });
+  // Bottom row: speeds, rail count, Clear, version.
+  const bottom = document.createElement('div');
+  bottom.className = 'hud-row bottom';
+
+  const walk = document.createElement('span');
+  walk.className = 'hud-sub-item';
+  walk.innerHTML =
+    `<span class="label">Walking:</span> ` +
+    `<span class="value">${LEVEL_1.walkCost} min/tile</span>`;
+  bottom.appendChild(walk);
+
+  const sep1 = document.createElement('span');
+  sep1.className = 'hud-sep';
+  sep1.textContent = '·';
+  bottom.appendChild(sep1);
+
+  const rail = document.createElement('span');
+  rail.className = 'hud-sub-item';
+  rail.innerHTML =
+    `<span class="label">Rail:</span> ` +
+    `<span class="value">${LEVEL_1.railCost} min/tile</span>`;
+  bottom.appendChild(rail);
+
+  const sep2 = document.createElement('span');
+  sep2.className = 'hud-sep';
+  sep2.textContent = '·';
+  bottom.appendChild(sep2);
+
+  const railCount = document.createElement('span');
+  railCount.className = 'hud-rail-count';
+  railCount.innerHTML =
+    `Rail tiles used: <span class="num">${r.railCount}</span> / ${LEVEL_1.hardCap}`;
+  bottom.appendChild(railCount);
 
   const clearBtn = document.createElement('button');
   clearBtn.className = 'hud-btn';
-  clearBtn.textContent = 'CLEAR RAIL';
+  clearBtn.textContent = 'CLEAR';
   clearBtn.disabled = r.railCount === 0;
   clearBtn.addEventListener('click', clearAllRail);
-  hud.appendChild(clearBtn);
+  bottom.appendChild(clearBtn);
 
   const ver = document.createElement('span');
   ver.className = 'hud-version';
   ver.title = `Build ${BUILD}. If this number lags behind GitHub, Pages hasn't redeployed yet — hard-refresh.`;
   ver.textContent = `v${VERSION}`;
-  hud.appendChild(ver);
+  bottom.appendChild(ver);
 
-  hud.dataset.medal = r.medal;
+  hud.appendChild(bottom);
 }
 
 function formatTime(t) {
@@ -496,73 +525,91 @@ function statusFor(time) {
 
 // ---------- Sidebar ----------
 
-function renderCommuterList() {
-  sideEl.innerHTML = '';
-  sideEl.classList.remove('detail');
-
-  const title = document.createElement('div');
-  title.className = 'side-title';
-  title.textContent = 'COMMUTERS';
-  sideEl.appendChild(title);
-
+function showHoverCard(id, anchorEl) {
   if (!currentRoutes) return;
+  const c = currentRoutes.commuters.find((x) => x.id === id);
+  if (!c) return;
+  const meta = COMMUTER_META[id];
+  const status = statusFor(c.time);
+  const deadline = LEVEL_1.deadline;
+  const delta = c.time - deadline;
+  const deltaStr = !Number.isFinite(c.time)
+    ? 'no route — stuck'
+    : delta > 0
+      ? `${delta.toFixed(1)} min late`
+      : delta === 0
+        ? 'right on the bell'
+        : `${Math.abs(delta).toFixed(1)} min to spare`;
 
-  const list = document.createElement('div');
-  list.className = 'commuter-list';
+  hoverCard.innerHTML = '';
+  hoverCard.dataset.status = status;
+  hoverCard.style.setProperty('--accent', `var(--commuter-${id})`);
 
-  for (const c of currentRoutes.commuters) {
-    const meta = COMMUTER_META[c.id];
-    const status = statusFor(c.time);
+  const header = document.createElement('div');
+  header.className = 'hc-header';
+  const sp = document.createElement('span');
+  sp.className = 'hc-sprite';
+  sp.appendChild(personSprite(id));
+  const info = document.createElement('div');
+  const name = document.createElement('div');
+  name.className = 'hc-name';
+  name.textContent = `Commuter ${id}`;
+  const dest = document.createElement('div');
+  dest.className = 'hc-dest';
+  dest.textContent = `→ ${meta.destLabel}`;
+  info.appendChild(name);
+  info.appendChild(dest);
+  header.appendChild(sp);
+  header.appendChild(info);
+  hoverCard.appendChild(header);
 
-    const row = document.createElement('div');
-    row.className = 'commuter-row';
-    row.dataset.id = c.id;
-    row.dataset.status = status;
+  const time = document.createElement('div');
+  time.className = 'hc-time';
+  time.textContent = formatTime(c.time);
+  hoverCard.appendChild(time);
 
-    const swatch = document.createElement('span');
-    swatch.className = 'cr-swatch';
-    swatch.appendChild(personSprite(c.id));
+  const delt = document.createElement('div');
+  delt.className = 'hc-delta';
+  delt.textContent = deltaStr;
+  hoverCard.appendChild(delt);
 
-    const info = document.createElement('div');
-    info.className = 'cr-info';
-    const name = document.createElement('div');
-    name.className = 'cr-name';
-    name.textContent = `Commuter ${c.id}`;
-    const dest = document.createElement('div');
-    dest.className = 'cr-dest';
-    dest.textContent = `→ ${meta.destLabel}`;
-    info.appendChild(name);
-    info.appendChild(dest);
+  const dl = document.createElement('div');
+  dl.className = 'hc-deadline';
+  dl.textContent = `Deadline: ${deadline.toFixed(0)} min`;
+  hoverCard.appendChild(dl);
 
-    const time = document.createElement('div');
-    time.className = 'cr-time';
-    time.textContent = formatTime(c.time);
+  positionHoverCard(anchorEl);
+  hoverCard.style.display = 'block';
+}
 
-    row.appendChild(swatch);
-    row.appendChild(info);
-    row.appendChild(time);
+function positionHoverCard(anchorEl) {
+  const rect = anchorEl.getBoundingClientRect();
+  // Measure card after content is set.
+  const cardRect = hoverCard.getBoundingClientRect();
+  const cardW = cardRect.width || 220;
+  const cardH = cardRect.height || 140;
+  const margin = 12;
 
-    row.addEventListener('mouseenter', () => {
-      if (dragMode) return;
-      highlightCommuter(c.id);
-    });
-    row.addEventListener('mouseleave', () => {
-      if (dragMode) return;
-      // Don't re-render the list (it's already there) — just drop the
-      // hover state + tile highlights.
-      clearTileHighlights();
-      for (const r of sideEl.querySelectorAll('.commuter-row')) {
-        r.classList.remove('active');
-      }
-    });
-    list.appendChild(row);
+  // Prefer to the right of the tile; fall back to left if overflow.
+  let left = rect.right + margin;
+  if (left + cardW > window.innerWidth - 8) {
+    left = rect.left - cardW - margin;
   }
-  sideEl.appendChild(list);
+  if (left < 8) left = 8;
 
-  const hint = document.createElement('div');
-  hint.className = 'side-hint';
-  hint.textContent = 'Hover a row (or a person on the grid) to see their route.';
-  sideEl.appendChild(hint);
+  // Vertically align with the tile, clamp to viewport.
+  let top = rect.top + (rect.height / 2) - (cardH / 2);
+  if (top + cardH > window.innerHeight - 8) {
+    top = window.innerHeight - cardH - 8;
+  }
+  if (top < 8) top = 8;
+
+  hoverCard.style.left = `${Math.round(left)}px`;
+  hoverCard.style.top = `${Math.round(top)}px`;
+}
+
+function hideHoverCard() {
+  hoverCard.style.display = 'none';
 }
 
 function highlightCommuter(id) {
@@ -574,88 +621,44 @@ function highlightCommuter(id) {
     const el = tileByKey.get(`${x},${y}`);
     if (el) el.classList.add('highlight');
   }
-  // Mark the matching sidebar row as active.
-  for (const row of sideEl.querySelectorAll('.commuter-row')) {
-    row.classList.toggle('active', row.dataset.id === id);
-  }
 }
 
 function clearHighlight() {
   clearTileHighlights();
-  for (const row of sideEl.querySelectorAll('.commuter-row')) {
-    row.classList.remove('active');
-  }
 }
 
 function clearTileHighlights() {
   for (const el of tileByKey.values()) el.classList.remove('highlight');
 }
 
-// ---------- Success modal ----------
+// ---------- Result modal (success or "not yet") ----------
 
-function showSuccessModal(r) {
-  const existing = document.getElementById('success-modal');
+function showResultModal(r) {
+  const existing = document.getElementById('result-modal');
   if (existing) existing.remove();
+  hideHoverCard();
 
   const backdrop = document.createElement('div');
   backdrop.className = 'modal-backdrop';
-  backdrop.id = 'success-modal';
+  backdrop.id = 'result-modal';
   backdrop.dataset.medal = r.medal;
 
   const modal = document.createElement('div');
-  modal.className = 'success-modal';
+  modal.className = 'result-modal';
   modal.dataset.medal = r.medal;
 
-  const medalWrap = document.createElement('div');
-  medalWrap.className = 'medal-wrap';
-
-  const medalIcon = document.createElement('div');
-  medalIcon.className = 'medal-icon';
-  medalIcon.dataset.medal = r.medal;
-  medalIcon.textContent = '★';
-  medalWrap.appendChild(medalIcon);
-
-  const stars = document.createElement('div');
-  stars.className = 'medal-stars';
-  const starCount = r.medal === 'gold' ? 3 : r.medal === 'silver' ? 2 : 1;
-  stars.textContent = '★'.repeat(starCount) + '☆'.repeat(3 - starCount);
-  medalWrap.appendChild(stars);
-
-  const medalLabel = document.createElement('div');
-  medalLabel.className = 'medal-label';
-  medalLabel.dataset.medal = r.medal;
-  medalLabel.textContent = r.medal.toUpperCase();
-  medalWrap.appendChild(medalLabel);
-
-  modal.appendChild(medalWrap);
+  if (r.allPass) modal.appendChild(buildMedalBlock(r));
 
   const title = document.createElement('h2');
   title.className = 'modal-title';
-  title.textContent = 'EVERYONE ON TIME!';
+  title.textContent = r.allPass ? 'EVERYONE ON TIME!' : 'NOT YET!';
   modal.appendChild(title);
 
-  const scoreBlock = document.createElement('div');
-  scoreBlock.className = 'modal-scores';
-
-  const yourRow = document.createElement('div');
-  yourRow.className = 'score-row your-row';
-  yourRow.innerHTML = `
-    <span class="score-label">YOUR SOLUTION</span>
-    <span class="score-num">${r.railCount}</span>
-    <span class="score-unit">rail tiles</span>
-  `;
-
-  const bestRow = document.createElement('div');
-  bestRow.className = 'score-row best-row';
-  bestRow.innerHTML = `
-    <span class="score-label">BEST KNOWN</span>
-    <span class="score-num">${LEVEL_1.gold}</span>
-    <span class="score-unit">rail tiles</span>
-  `;
-
-  scoreBlock.appendChild(yourRow);
-  scoreBlock.appendChild(bestRow);
-  modal.appendChild(scoreBlock);
+  if (r.allPass) {
+    modal.appendChild(buildScoreBlock(r));
+  } else {
+    modal.appendChild(buildLateList(r));
+  }
 
   const message = document.createElement('div');
   message.className = 'modal-message';
@@ -664,26 +667,116 @@ function showSuccessModal(r) {
 
   const btn = document.createElement('button');
   btn.className = 'modal-btn';
-  btn.textContent = 'KEEP PLAYING';
-  btn.addEventListener('click', () => backdrop.remove());
+  btn.textContent = r.allPass ? 'KEEP BUILDING' : 'TRY AGAIN';
+  btn.addEventListener('click', () => closeModal());
   modal.appendChild(btn);
 
-  backdrop.addEventListener('click', (e) => {
-    if (e.target === backdrop) backdrop.remove();
-  });
-  document.addEventListener('keydown', escClose);
-  function escClose(e) {
-    if (e.key === 'Escape') {
-      backdrop.remove();
-      document.removeEventListener('keydown', escClose);
-    }
+  function closeModal() {
+    backdrop.remove();
+    document.removeEventListener('keydown', onKey);
   }
+  function onKey(e) { if (e.key === 'Escape') closeModal(); }
+
+  backdrop.addEventListener('click', (e) => {
+    if (e.target === backdrop) closeModal();
+  });
+  document.addEventListener('keydown', onKey);
 
   backdrop.appendChild(modal);
   document.body.appendChild(backdrop);
 }
 
+function buildMedalBlock(r) {
+  const wrap = document.createElement('div');
+  wrap.className = 'medal-wrap';
+
+  const icon = document.createElement('div');
+  icon.className = 'medal-icon';
+  icon.dataset.medal = r.medal;
+  icon.textContent = '★';
+  wrap.appendChild(icon);
+
+  const stars = document.createElement('div');
+  stars.className = 'medal-stars';
+  const starCount = r.medal === 'gold' ? 3 : r.medal === 'silver' ? 2 : 1;
+  stars.textContent = '★'.repeat(starCount) + '☆'.repeat(3 - starCount);
+  wrap.appendChild(stars);
+
+  const label = document.createElement('div');
+  label.className = 'medal-label';
+  label.dataset.medal = r.medal;
+  label.textContent = r.medal.toUpperCase();
+  wrap.appendChild(label);
+
+  return wrap;
+}
+
+function buildScoreBlock(r) {
+  const block = document.createElement('div');
+  block.className = 'modal-scores';
+
+  const your = document.createElement('div');
+  your.className = 'score-row your-row';
+  your.innerHTML =
+    `<span class="score-label">YOUR SOLUTION</span>` +
+    `<span class="score-num">${r.railCount}</span>` +
+    `<span class="score-unit">rail tiles</span>`;
+  block.appendChild(your);
+
+  const best = document.createElement('div');
+  best.className = 'score-row best-row';
+  best.innerHTML =
+    `<span class="score-label">BEST KNOWN</span>` +
+    `<span class="score-num">${LEVEL_1.gold}</span>` +
+    `<span class="score-unit">rail tiles</span>`;
+  block.appendChild(best);
+
+  return block;
+}
+
+function buildLateList(r) {
+  const onTime = r.commuters.filter((c) => c.time <= LEVEL_1.deadline).length;
+  const total = r.commuters.length;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'modal-scores';
+
+  const header = document.createElement('div');
+  header.className = 'score-row';
+  header.innerHTML =
+    `<span class="score-label">ON TIME</span>` +
+    `<span class="score-num">${onTime}</span>` +
+    `<span class="score-unit">of ${total}</span>`;
+  wrap.appendChild(header);
+
+  const late = r.commuters.filter((c) => c.time > LEVEL_1.deadline);
+  if (late.length) {
+    const list = document.createElement('div');
+    list.className = 'late-list';
+    for (const c of late) {
+      const row = document.createElement('div');
+      row.className = 'late-row';
+      row.dataset.id = c.id;
+      row.innerHTML =
+        `<span>Commuter ${c.id}</span>` +
+        `<span class="lr-time">${formatTime(c.time)}</span>`;
+      list.appendChild(row);
+    }
+    wrap.appendChild(list);
+  }
+
+  return wrap;
+}
+
 function messageForResult(r) {
+  if (!r.allPass) {
+    const onTime = r.commuters.filter((c) => c.time <= LEVEL_1.deadline).length;
+    const missing = r.commuters.length - onTime;
+    if (missing === 1) {
+      return 'One commuter is still over the deadline. Lay more rail along their path and submit again.';
+    }
+    return `${missing} commuters are still over the deadline. Try a shared corridor that helps more than one route.`;
+  }
   const gold = LEVEL_1.gold;
   const delta = r.railCount - gold;
   if (r.medal === 'gold') return 'Maximum optimization. You found the shared corridor.';
