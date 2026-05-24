@@ -40,7 +40,22 @@ html, body { margin: 0; padding: 0; }
 
 body {
   min-height: 100vh;
+  /* The Bay continues beyond the playable city. We paint ocean on the
+     top and right edges of the viewport so the small NE water pocket
+     inside the grid reads as "Bay enters from the NE corner" instead
+     of "lone blue square in the corner". Land checker fills the rest. */
   background:
+    /* top ocean strip (subtle wave pattern) */
+    repeating-linear-gradient(135deg,
+      #4a8bb8 0 8px,
+      #3f7aa3 8px 9px,
+      #4a8bb8 9px 16px) top / 100% 80px no-repeat,
+    /* right ocean strip */
+    repeating-linear-gradient(45deg,
+      #4a8bb8 0 8px,
+      #3f7aa3 8px 9px,
+      #4a8bb8 9px 16px) right / 80px 100% no-repeat,
+    /* land checker beneath */
     repeating-conic-gradient(var(--bg) 0deg 90deg, var(--bg-pattern) 90deg 180deg)
       0 0 / 24px 24px;
   color: var(--text);
@@ -224,6 +239,29 @@ body {
   box-shadow: inset 0 0 0 1px #00000020;
 }
 .tile.park .sprite-svg { width: 30px; height: 30px; }
+
+/* Water (NE bay pocket): solid blue with diagonal sheen + wave caps. */
+.tile.water {
+  background:
+    repeating-linear-gradient(45deg,
+      #4a8bb8 0 6px,
+      #3f7aa3 6px 7px,
+      #4a8bb8 7px 14px),
+    #4a8bb8;
+  cursor: not-allowed;
+  box-shadow: inset 0 0 0 1px #00000025;
+}
+.tile.water .sprite-svg { width: 30px; height: 30px; }
+
+/* Hill (Twin Peaks): warm tan dirt with a mountain sprite. */
+.tile.hill {
+  background:
+    repeating-linear-gradient(135deg, transparent 0 6px, #00000012 6px 7px),
+    #d4b483;
+  cursor: not-allowed;
+  box-shadow: inset 0 0 0 1px #00000025;
+}
+.tile.hill .sprite-svg { width: 30px; height: 30px; }
 
 /* Start + destination tiles: soft tint of accent color + chunky frame.
    Both ends of one commuter's commute carry the same color, so pairing

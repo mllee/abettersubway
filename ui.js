@@ -87,6 +87,49 @@ function treeSprite() {
   ], 'tree');
 }
 
+function waterSprite() {
+  // Drawn over a flat blue tile (set via CSS). Wave caps are short
+  // light/dark dashes scattered so adjacent water tiles don't tile
+  // into an obvious repeating pattern.
+  return makeSprite('0 0 16 16', [
+    [3, 3, 3, 1, '#cfe6f5'],
+    [10, 5, 3, 1, '#cfe6f5'],
+    [5, 8, 3, 1, '#cfe6f5'],
+    [11, 11, 3, 1, '#cfe6f5'],
+    [2, 13, 3, 1, '#cfe6f5'],
+    [3, 4, 4, 1, '#2b5a85'],
+    [10, 6, 4, 1, '#2b5a85'],
+    [5, 9, 4, 1, '#2b5a85'],
+    [11, 12, 4, 1, '#2b5a85'],
+    [2, 14, 4, 1, '#2b5a85'],
+  ], 'water');
+}
+
+function hillSprite() {
+  // A small two-peak mountain — chunky outline, light cap, shaded right
+  // side. Reads as a hill at ~30px.
+  return makeSprite('0 0 16 16', [
+    [2, 13, 12, 1, '#4a7a3a'],
+    [2, 14, 12, 1, '#3a5a2a'],
+    [4, 12, 8, 1, '#3a2010'],
+    [4, 11, 1, 1, '#3a2010'],
+    [11, 11, 1, 1, '#3a2010'],
+    [5, 10, 1, 1, '#3a2010'],
+    [10, 10, 1, 1, '#3a2010'],
+    [6, 9, 1, 1, '#3a2010'],
+    [9, 9, 1, 1, '#3a2010'],
+    [7, 8, 1, 1, '#3a2010'],
+    [8, 8, 1, 1, '#3a2010'],
+    [5, 11, 6, 1, '#8a6a4a'],
+    [6, 10, 4, 1, '#8a6a4a'],
+    [7, 9, 2, 1, '#8a6a4a'],
+    [5, 12, 3, 1, '#a8886a'],
+    [6, 11, 2, 1, '#a8886a'],
+    [7, 7, 2, 1, '#3a2010'],
+    [7, 8, 2, 1, '#dcd6c8'],
+  ], 'hill');
+}
+
 function personSprite(id) {
   // Shirt color matches the commuter's accent so the eye can pair person
   // with destination building (which also wears that color).
@@ -245,6 +288,11 @@ function railSprite(conn) {
 // ---------- Grid build ----------
 
 const parkSet = new Set(LEVEL_1.parks.map(([x, y]) => `${x},${y}`));
+// Optional visual subsets — when a level splits its impassable tiles into
+// water/hills/greenParks, we render distinct sprites. Otherwise everything
+// in `parks` gets the green-park treatment.
+const waterSet = new Set((LEVEL_1.water || []).map(([x, y]) => `${x},${y}`));
+const hillsSet = new Set((LEVEL_1.hills || []).map(([x, y]) => `${x},${y}`));
 const startByKey = new Map();
 const destByKey = new Map();
 for (const c of LEVEL_1.commuters) {
@@ -268,7 +316,13 @@ for (let y = 1; y <= LEVEL_1.height; y++) {
     div.dataset.x = String(x);
     div.dataset.y = String(y);
 
-    if (parkSet.has(k)) {
+    if (waterSet.has(k)) {
+      div.classList.add('water');
+      div.appendChild(waterSprite());
+    } else if (hillsSet.has(k)) {
+      div.classList.add('hill');
+      div.appendChild(hillSprite());
+    } else if (parkSet.has(k)) {
       div.classList.add('park');
       div.appendChild(treeSprite());
     } else if (startByKey.has(k)) {
