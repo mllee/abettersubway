@@ -5,7 +5,12 @@
 // continuous strip in the same mode as the first tile. The Clear button
 // wipes all placed rail.
 
-import { LEVEL_1 } from './level1.js';
+import {
+  LEVELS,
+  getActiveLevelIndex,
+  setActiveLevelIndex,
+  getActiveLevel,
+} from './levels.js';
 import {
   createState,
   placeRail,
@@ -14,6 +19,12 @@ import {
 } from './mechanics.js';
 import { VERSION, BUILD } from './version.js';
 
+// Active level (loaded from localStorage). The rest of this file treats
+// LEVEL_1 as a const because the prev/next arrows swap levels by
+// reloading the page — no in-place level swap needed.
+const ACTIVE_LEVEL = getActiveLevel();
+const LEVEL_1 = ACTIVE_LEVEL.data;
+
 const hud = document.getElementById('hud');
 const app = document.getElementById('app');
 // #commuters is hidden in CSS — we use a floating hover-card now instead.
@@ -21,6 +32,55 @@ const hoverCard = document.createElement('div');
 hoverCard.className = 'hover-card';
 hoverCard.style.display = 'none';
 document.body.appendChild(hoverCard);
+
+// City banner — big pixel-font level name sandwiched between the prev /
+// next arrows. Sits between the HUD and the grid. Hidden when there's
+// only one level registered, so adding a third later "just works."
+if (LEVELS.length > 1) {
+  const banner = document.createElement('div');
+  banner.className = 'city-banner';
+
+  const prev = document.createElement('button');
+  prev.className = 'banner-arrow';
+  prev.type = 'button';
+  prev.textContent = '◀';
+  prev.title = 'Previous city';
+  prev.addEventListener('click', () => switchLevel(-1));
+
+  const title = document.createElement('div');
+  title.className = 'banner-title';
+  title.textContent = ACTIVE_LEVEL.name.toUpperCase();
+
+  const counter = document.createElement('div');
+  counter.className = 'banner-counter';
+  counter.textContent = `${getActiveLevelIndex() + 1} / ${LEVELS.length}`;
+
+  const titleWrap = document.createElement('div');
+  titleWrap.className = 'banner-title-wrap';
+  titleWrap.appendChild(title);
+  titleWrap.appendChild(counter);
+
+  const next = document.createElement('button');
+  next.className = 'banner-arrow';
+  next.type = 'button';
+  next.textContent = '▶';
+  next.title = 'Next city';
+  next.addEventListener('click', () => switchLevel(+1));
+
+  banner.appendChild(prev);
+  banner.appendChild(titleWrap);
+  banner.appendChild(next);
+
+  // Insert into the body before #app so it appears between HUD and grid.
+  document.body.insertBefore(banner, app);
+}
+
+function switchLevel(delta) {
+  const total = LEVELS.length;
+  const next = (getActiveLevelIndex() + delta + total) % total;
+  setActiveLevelIndex(next);
+  location.reload();
+}
 
 const state = createState(LEVEL_1);
 
