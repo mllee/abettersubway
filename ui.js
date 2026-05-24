@@ -578,8 +578,9 @@ function renderHud(r) {
   const title = document.createElement('h1');
   title.className = 'hud-title';
   title.innerHTML =
-    `Add train tracks to help everyone get to work in ` +
-    `<span class="deadline">${deadline} minutes</span>!` +
+    `Help get everyone to work in under ` +
+    `<span class="deadline">${deadline} minutes</span> ` +
+    `using as few train tracks as possible!` +
     `<span class="hud-subtitle">Everyone takes the shortest route — ` +
     `walking <strong>2 min</strong> per square, ` +
     `train <strong>30 sec</strong> per square.</span>`;
