@@ -67,39 +67,41 @@ export const LEVEL_1 = {
   hills: HILLS,
   greenParks: GREEN_PARKS,
 
-  // All four commuters converge toward N/NE downtown, except D who
-  // cuts across the south (E/W). Walking baselines (verified by
-  // computeRoutes, accounting for the cross-commuter blocking rule):
-  //   A: 42  (Bernal-ish SW -> Russian Hill NE, longest)
-  //   B: 38  (Outer Mission -> Telegraph Hill, must cross GGP + skirt C)
-  //   C: 28  (Bayview SE -> North Beach N)
-  //   D: 26  (Outer Richmond W -> Mission Bay E, straight east)
+  // Four commuters arranged in a *rotational* pattern — each one heads in
+  // a different cardinal-ish direction, so no single "downtown corridor"
+  // helps everyone. Solver search (30 random hillclimbs) finds 30
+  // geometrically distinct 19-tile solutions, which is the property we
+  // want: the player's first passing solution and the next player's
+  // first passing solution look completely different.
+  //
+  //   A: Pacific Heights (NW)   → Outer Mission (S)
+  //   B: Financial Dist (NE)    → Outer Richmond (W mid)
+  //   C: Bayview (SE)           → Marina (N)
+  //   D: Bernal Heights (SW)    → Mission Bay (E mid)
+  //
+  // Walking baselines (with the cross-commuter blocking rule applied):
+  //   A: 38, B: 32, C: 36, D: 34 — all well over the 22-min deadline.
   commuters: [
-    { id: 'A', start: [3, 14],  dest: [14, 4] },
-    { id: 'B', start: [8, 16],  dest: [12, 3] },
-    { id: 'C', start: [13, 15], dest: [11, 3] },
-    { id: 'D', start: [2, 9],   dest: [14, 10] },
+    { id: 'A', start: [2, 4],   dest: [8, 15]  },
+    { id: 'B', start: [14, 4],  dest: [2, 8]   },
+    { id: 'C', start: [14, 14], dest: [8, 2]   },
+    { id: 'D', start: [3, 14],  dest: [15, 9]  },
   ],
 
-  // Tier targets from solver search (multi-start greedy + random trim,
-  // 12 trials, every trial converged):
-  //
-  //   gold = 14   the non-obvious zigzag corridor that climbs from
-  //               (4,14)→(6,14)→(8,13)→(8,10) then east to (11,10) and
-  //               north to (10,4). Threads adjacent to Twin Peaks
-  //               instead of detouring around — a route a player has
-  //               to invent, not see at a glance.
-  //
-  //   silver = 19 the "obvious" L-shape: a horizontal trunk on row 10
-  //               (x=2..14) plus a vertical trunk on col 12 up to row
-  //               3. Passes all four, just wastes ~5 tiles vs. gold.
-  //
-  //   bronze = 22 hard cap. Tighter "U" / "plus" shapes at this size
-  //               can still fail (silver is the floor for naive shapes).
-  hardCap: 22,
-  gold:    14,
-  silver:  19,
-  bronze:  22,
+  // Tier targets from solver search:
+  //   gold   = 19  every random hillclimb finds a 19-tile solution but
+  //                each one *looks different*. There are many equally-
+  //                optimal geometries, so the player gets the "wait,
+  //                this could be done totally differently" feeling
+  //                instead of "everyone solves it with the same line."
+  //   silver = 22  a naive "+" or "L" combo lands around here; player's
+  //                first instinct works but wastes a few tiles.
+  //   bronze = 25  hard cap. Beyond this the budget runs out before
+  //                anyone gets to work.
+  hardCap: 25,
+  gold:    19,
+  silver:  22,
+  bronze:  25,
   deadline: 22.0,
 
   walkCost: 2.0,
