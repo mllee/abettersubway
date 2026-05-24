@@ -8,8 +8,8 @@
      sizes. Resizing the window reflows live. */
   --tile-size: max(8px, min(
     44px,
-    calc((100vw - 140px) / 15),
-    calc((100vh - 280px) / 15)
+    calc((100vw - 168px) / 15),
+    calc((100vh - 308px) / 15)
   ));
   --gap: 2px;
 
@@ -204,9 +204,9 @@ body {
   grid-template-columns: repeat(var(--cols, 15), var(--tile-size));
   grid-template-rows: repeat(var(--rows, 15), var(--tile-size));
   gap: var(--gap);
-  /* Asymmetric padding: the top and right strips of the #app box hold
-     the off-grid ocean. Bottom/left stay tight against dirt. */
-  padding: 40px 40px 12px 12px;
+  /* Symmetric 40px padding so the dirt frame on the bottom/left visually
+     matches the ocean strips on top/right. */
+  padding: 40px;
   background:
     /* Top ocean strip — full width of the box, top 40px. */
     repeating-linear-gradient(135deg,
