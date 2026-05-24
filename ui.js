@@ -33,14 +33,28 @@ for (let y = 1; y <= level.height; y++) {
     div.dataset.x = x;
     div.dataset.y = y;
     if (parkSet.has(k)) div.classList.add('park');
+    let commuterId = null;
     if (startMap.has(k)) {
+      commuterId = startMap.get(k);
       div.classList.add('start');
-      div.dataset.commuter = startMap.get(k);
-      div.textContent = startMap.get(k);
+      div.dataset.commuter = commuterId;
+      div.textContent = commuterId;
     } else if (destMap.has(k)) {
+      commuterId = destMap.get(k);
       div.classList.add('dest');
-      div.dataset.commuter = destMap.get(k);
-      div.textContent = destMap.get(k).toLowerCase();
+      div.dataset.commuter = commuterId;
+      div.textContent = commuterId.toLowerCase();
+    }
+    if (commuterId) {
+      // Hover a commuter's start or dest tile to preview their path.
+      div.addEventListener('mouseenter', () => {
+        if (dragMode) return;
+        highlightPath(commuterId);
+      });
+      div.addEventListener('mouseleave', () => {
+        if (dragMode) return;
+        highlightPath(null);
+      });
     }
     app.appendChild(div);
     tiles.set(k, div);
