@@ -652,8 +652,10 @@ function renderHud(r) {
   title.innerHTML =
     `Help get everyone to work in under ` +
     `<span class="deadline">${deadline} minutes</span>!` +
-    `<span class="hud-subtitle">Click and drag empty tiles to add train tracks ` +
-    `— use as few as possible for the best score</span>` +
+    `<span class="hud-subtitle">Our city got budget for new train tracks, ` +
+    `but we can't build them everywhere.</span>` +
+    `<span class="hud-subtitle">Click and drag empty tiles to add new tracks ` +
+    `to shorten people's commutes!</span>` +
     `<span class="hud-subtitle hud-metrics">Walking <strong>2 min</strong>/square · ` +
     `Train <strong>30 sec</strong>/square</span>`;
   top.appendChild(title);

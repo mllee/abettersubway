@@ -151,6 +151,13 @@ body {
   color: var(--text);
   font-weight: 700;
 }
+/* Speed-metrics row sits a bit lower and slightly smaller — reads as
+   reference info, not a primary instruction. */
+#hud .hud-title .hud-subtitle.hud-metrics {
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.85;
+}
 
 #hud .hud-sub-item {
   white-space: nowrap;
