@@ -18,7 +18,6 @@
   --tile-hover: #e2cf94;
 
   --green: #4ec24a;
-  --yellow: #f5b223;
   --red: #e54b3b;
 
   --highlight: #ffd54f;
@@ -329,9 +328,8 @@ body {
   text-align: center;
   box-shadow: 1px 1px 0 #00000030;
 }
-.time-badge[data-status="green"]  { background: var(--green); }
-.time-badge[data-status="yellow"] { background: var(--yellow); color: #2a1f15; }
-.time-badge[data-status="red"]    { background: var(--red); }
+.time-badge[data-status="green"] { background: var(--green); }
+.time-badge[data-status="red"]   { background: var(--red); }
 
 .tile.highlight {
   box-shadow: inset 0 0 0 2px rgba(245, 180, 0, 0.55);
@@ -445,9 +443,8 @@ body {
   margin-top: 4px;
   line-height: 1;
 }
-.hover-card[data-status="green"]  .hc-time { color: var(--green); }
-.hover-card[data-status="yellow"] .hc-time { color: var(--yellow); }
-.hover-card[data-status="red"]    .hc-time { color: var(--red); }
+.hover-card[data-status="green"] .hc-time { color: var(--green); }
+.hover-card[data-status="red"]   .hc-time { color: var(--red); }
 .hover-card .hc-delta {
   text-align: center;
   font-size: 11px;

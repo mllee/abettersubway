@@ -629,7 +629,6 @@ function formatTime(t) {
 function statusFor(time) {
   const d = LEVEL_1.deadline;
   if (!Number.isFinite(time) || time > d) return 'red';
-  if (time > d - 2) return 'yellow'; // within 2 min of deadline
   return 'green';
 }
 
