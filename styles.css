@@ -9,7 +9,7 @@
   --tile-size: max(8px, min(
     44px,
     calc((100vw - 168px) / 15),
-    calc((100vh - 308px) / 15)
+    calc((100vh - 340px) / 15)
   ));
   --gap: 2px;
 
@@ -52,7 +52,13 @@
 html, body { margin: 0; padding: 0; }
 
 body {
-  min-height: 100vh;
+  /* Lock to one viewport tall, no scroll. The grid auto-shrinks via the
+     vertical reserve in --tile-size above; overflow:hidden is the safety
+     net if the HUD ever grows past the reserve (the grid would clip
+     instead of pushing the page taller). */
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background:
     repeating-conic-gradient(var(--bg) 0deg 90deg, var(--bg-pattern) 90deg 180deg)
       0 0 / 24px 24px;
