@@ -296,6 +296,11 @@ body {
   height: 100%;
   pointer-events: none;
   display: block;
+  /* Faded so the colored commuter dotted-lines read cleanly when they
+     flow over rail. We lose a bit of rail fidelity, but the rail's
+     identity is already carried by the shape; the contrast wasn't
+     pulling its weight. */
+  opacity: 0.45;
 }
 
 .time-badge {
