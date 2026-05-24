@@ -9,7 +9,7 @@
   --tile-size: max(8px, min(
     44px,
     calc((100vw - 168px) / 15),
-    calc((100vh - 365px) / 15)
+    calc((100vh - 420px) / 15)
   ));
   --gap: 2px;
 
