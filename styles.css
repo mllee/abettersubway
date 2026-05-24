@@ -1,0 +1,140 @@
+/* styles.css — A Better Subway */
+
+:root {
+  --tile: 36px;
+  --gap: 2px;
+  --bg: #f6f5f1;
+  --grid-bg: #e8e6df;
+  --tile-bg: #ffffff;
+  --park: #8aa67a;
+  --rail: #2b2b2b;
+  --path: #ffd84a;
+  --start: #2f6fd8;
+  --dest: #d83a5a;
+  --ok: #2ea84a;
+  --warn: #d4a017;
+  --late: #d83a3a;
+  --fail: #7a1414;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: #222;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "hud hud"
+    "app aside";
+  min-height: 100vh;
+  gap: 16px;
+  padding: 16px;
+}
+
+#hud {
+  grid-area: hud;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  font-size: 14px;
+  align-items: center;
+}
+.hud-item { white-space: nowrap; }
+.hud-item b { font-weight: 600; }
+.medal { padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+.medal-gold   { background: #f7e08c; color: #6b5400; }
+.medal-silver { background: #d8dde3; color: #424b56; }
+.medal-bronze { background: #e0b890; color: #5a3614; }
+.medal-fail   { background: #f4d1d1; color: #7a1414; }
+
+#app {
+  grid-area: app;
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 15), var(--tile));
+  grid-template-rows: repeat(var(--rows, 15), var(--tile));
+  gap: var(--gap);
+  padding: var(--gap);
+  background: var(--grid-bg);
+  border-radius: 8px;
+  width: max-content;
+  height: max-content;
+  user-select: none;
+}
+
+.tile {
+  background: var(--tile-bg);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 80ms, transform 80ms;
+}
+.tile:hover { background: #eef2f7; }
+.tile.park  { background: var(--park); cursor: not-allowed; }
+.tile.park:hover { background: var(--park); }
+.tile.rail  { background: var(--rail); }
+.tile.start { background: var(--start); color: #fff; cursor: not-allowed; }
+.tile.dest  { background: var(--dest);  color: #fff; cursor: not-allowed; }
+.tile.start:hover, .tile.dest:hover { filter: brightness(1.05); }
+
+.tile.path {
+  outline: 2px solid var(--path);
+  outline-offset: -2px;
+  z-index: 1;
+}
+.tile.rail.path { background: #5e5430; }
+.tile.reject {
+  animation: shake 200ms;
+  background: #ffd9d9 !important;
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+#commuters {
+  grid-area: aside;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 220px;
+  max-width: 280px;
+}
+
+.card {
+  padding: 10px 12px;
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  cursor: default;
+  border-left: 4px solid #ccc;
+}
+.card:hover { background: #fafaf6; }
+.card-id { font-weight: 600; letter-spacing: 0.5px; }
+.card-time { font-variant-numeric: tabular-nums; font-size: 13px; }
+.card.status-ok   { border-left-color: var(--ok); }
+.card.status-warn { border-left-color: var(--warn); }
+.card.status-late { border-left-color: var(--late); }
+.card.status-fail { border-left-color: var(--fail); }
+.card.status-ok   .card-time { color: var(--ok); }
+.card.status-warn .card-time { color: var(--warn); }
+.card.status-late .card-time { color: var(--late); }
+.card.status-fail .card-time { color: var(--fail); }
+
+.loading { color: #888; font-style: italic; }

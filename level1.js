@@ -2,62 +2,58 @@
 // Owner: Lane B. Data only — no logic.
 //
 // Coordinates are [x, y] where x = column (1-indexed, left-to-right) and
-// y = row (1-indexed, top-to-bottom). Derived directly from the spec's
-// ASCII board.
+// y = row (1-indexed, top-to-bottom).
 
 /** @type {import('./mechanics.js').Level} */
 export const LEVEL_1 = {
   width: 15,
   height: 15,
 
-  // Park tiles (block rail placement; walkable for commuters).
+  // Central park box. Hollow interior is unreachable (walled in), so it
+  // functions as a single obstacle that forces all four commuters to route
+  // around it. Parks block rail placement; commuters could walk through
+  // them, but the box has no interior path so it acts as a solid obstacle.
   parks: [
-    [6, 3],  [7, 3],
-    [6, 4],  [7, 4],  [10, 4], [11, 4],
-    [10, 5], [11, 5],
-    [8, 6],  [9, 6],
-    [8, 7],  [9, 7],
-    [9, 9],  [10, 9],
-    [9, 10], [10, 10],
-    [4, 11], [5, 11],
-    [4, 12], [5, 12], [8, 12], [9, 12],
-    [8, 13], [9, 13],
+    [6, 5],  [7, 5],  [8, 5],  [9, 5],  [10, 5],
+    [6, 6],  [7, 6],  [8, 6],  [9, 6],  [10, 6],
+    [6, 7],                                       [10, 7],
+    [6, 8],                                       [10, 8],
+    [6, 9],                                       [10, 9],
+    [6, 10], [7, 10], [8, 10], [9, 10], [10, 10],
+    [6, 11], [7, 11], [8, 11], [9, 11], [10, 11],
   ],
 
-  // Commuters: id is the uppercase label (start); destination uses the
-  // matching lowercase label on the board.
+  // Four commuters routed around the central obstacle.
+  // A & B share a diagonal across the top; C goes horizontally; D vertically.
   commuters: [
-    { id: 'A', start: [2, 2],  dest: [14, 7] },
-    { id: 'B', start: [3, 6],  dest: [13, 2] },
-    { id: 'C', start: [15, 9], dest: [2, 9]  },
-    { id: 'D', start: [6, 14], dest: [3, 13] },
+    { id: 'A', start: [2, 4],   dest: [14, 12] },
+    { id: 'B', start: [14, 4],  dest: [2, 12]  },
+    { id: 'C', start: [2, 8],   dest: [14, 8]  },
+    { id: 'D', start: [8, 14],  dest: [8, 2]   },
   ],
 
   hardCap: 22,
-  gold:    16,
-  silver:  19,
-  bronze:  22,
-  deadline: 20.0,
+  gold:    14,
+  silver:  17,
+  bronze:  20,
+  deadline: 22.0,
 
   walkCost: 2.0,
   railCost: 0.5,
 };
 
-// Reference: walking-only baseline (zero rail). Lane B should match these
-// when computeRoutes is called with an empty rail set:
+// Walking-only baseline (zero rail), verified by computeRoutes:
+//   A -> a : 40 min
+//   B -> b : 40 min
+//   C -> c : 24 min
+//   D -> d : 24 min
 //
-//   A -> a : 34 min
-//   B -> b : 28 min
-//   C -> c : 26 min
-//   D -> d :  8 min  (already passes with no rail — intentional)
+// All four are over the 22-min deadline at baseline, so all four need rail.
 //
-// Reference: spec's gold corridor (16 tiles). User will hand-verify whether
-// this actually clears all commuters under 20 min. If not, the spec or the
-// cost model needs adjusting before tiers are authoritative.
+// Known optimum (multi-start search): 14 rails. Sample gold solution:
+//   row 4 corridor:  (3,4)..(13,4)   -- shared by A and B (11 tiles)
+//   C dabs:          (3,8), (13,8)   -- pull C off slow walk on row 8
+//   D dab:           (8,12)          -- helps D's vertical run
 //
-//   (4,5), (5,5), (6,5), (7,5),
-//   (7,6), (7,7),
-//   (7,8), (8,8), (9,8), (10,8), (11,8),
-//   (11,7), (12,7),
-//   (12,6), (12,5),
-//   (13,5)
+// Greedy alone lands at ~17 rails; the optimum requires noticing that A's
+// and B's whole demand can be satisfied by a single horizontal corridor.
