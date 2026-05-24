@@ -597,6 +597,53 @@ body {
   color: var(--text-dim);
 }
 
+/* Tier table — shows all three medal thresholds with the current tier
+   highlighted. Each row has: colored star, tier name, threshold, "← YOU"
+   marker on the achieved row. */
+.tier-table {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--panel-border);
+}
+.tier-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.tier-row .tier-star { font-size: 14px; line-height: 1; }
+.tier-row[data-medal="gold"]   .tier-star { color: var(--gold-medal); }
+.tier-row[data-medal="silver"] .tier-star { color: var(--silver-medal); }
+.tier-row[data-medal="bronze"] .tier-star { color: var(--bronze-medal); }
+.tier-row .tier-label {
+  font-family: "VT323", "Press Start 2P", ui-monospace, monospace;
+  font-size: 16px;
+  letter-spacing: 1px;
+}
+.tier-row[data-medal="gold"]   .tier-label { color: var(--gold-medal); }
+.tier-row[data-medal="silver"] .tier-label { color: var(--silver-medal); }
+.tier-row[data-medal="bronze"] .tier-label { color: var(--bronze-medal); }
+.tier-row .tier-cap { text-align: left; }
+.tier-row .tier-you {
+  font-family: "VT323", "Press Start 2P", ui-monospace, monospace;
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 700;
+}
+.tier-row.current {
+  background: #fff5e1;
+  box-shadow: inset 0 0 0 2px currentColor;
+  color: var(--text);
+}
+.tier-row.current .tier-cap { color: var(--text); }
+
 .late-list {
   text-align: left;
   display: grid;
