@@ -329,38 +329,41 @@ let dragMode = null;       // 'place' | 'remove' | null
 let lastDragKey = null;    // last "x,y" we acted on, to avoid double-apply
 
 // ---------- Commuter path animation ----------
-// A small color-coded dot per commuter walks their current shortest path
-// from start to destination, loops back, and replays. It's a hint, not a
-// simulation — "this is how people would move if the workday started now."
-// Speeds mirror the mechanics (rail tiles take 1/4 the time of walked
-// tiles) so the eye learns the cost model just by watching.
+// A trail of color-coded dots walks each commuter's current shortest path
+// from start to work. Dots are spaced ~2 tiles apart and run continuously
+// — new ones spawn at the start whenever there's room behind the rear
+// dot; arrivals recycle. Each dot moves at its own segment's speed (rail
+// tiles fly by 4x faster than walked tiles), so the line visibly stretches
+// over rail and bunches over walking — the cost model becomes legible
+// without reading any numbers.
 app.style.position = 'relative';
 const animOverlay = document.createElementNS(SVG_NS, 'svg');
 animOverlay.setAttribute('class', 'commuter-overlay');
 animOverlay.setAttribute('aria-hidden', 'true');
 app.appendChild(animOverlay);
 
-const animDots = new Map();
+const TILE_DUR_WALK = 700;  // ms per walked tile
+const TILE_DUR_RAIL = 175;  // ms per rail tile (4x faster, matches cost model)
+const DOT_SPACING   = 2;    // tiles between consecutive dots (fractional pos units)
+const MAX_DOTS      = 14;   // pool size per commuter; longest path is ~30 tiles
+
 const animState = new Map();
 for (const c of LEVEL_1.commuters) {
-  const dot = document.createElementNS(SVG_NS, 'circle');
-  dot.setAttribute('r', '4');
-  dot.setAttribute('class', `commuter-dot dot-${c.id}`);
-  dot.setAttribute('cx', '-10');
-  dot.setAttribute('cy', '-10');
-  animOverlay.appendChild(dot);
-  animDots.set(c.id, dot);
-  // phaseOffset (0..1) staggers each commuter's start so they don't all
-  // step in lockstep when paths reset together.
-  animState.set(c.id, {
-    path: [], segIdx: 0, segT: 0, segDur: 0,
-    phaseOffset: Math.random(),
-  });
+  const els = [];
+  const dots = [];
+  for (let i = 0; i < MAX_DOTS; i++) {
+    const dot = document.createElementNS(SVG_NS, 'circle');
+    dot.setAttribute('r', '4');
+    dot.setAttribute('class', `commuter-dot dot-${c.id}`);
+    dot.setAttribute('cx', '-10');
+    dot.setAttribute('cy', '-10');
+    dot.setAttribute('opacity', '0');
+    animOverlay.appendChild(dot);
+    els.push(dot);
+    dots.push({ pos: 0, active: false });
+  }
+  animState.set(c.id, { path: [], dots, els });
 }
-
-const TILE_DUR_WALK = 700; // ms per walked tile
-const TILE_DUR_RAIL = 175; // ms per rail tile (4x faster, matches cost model)
-const DEST_PAUSE = 700;    // ms held at destination before looping back
 
 const tileCenters = new Map(); // "x,y" -> {cx, cy} in #app local coords
 
@@ -394,76 +397,88 @@ function samePath(a, b) {
 function updateAnimPaths(routes) {
   for (const c of routes.commuters) {
     const s = animState.get(c.id);
-    if (samePath(s.path, c.path)) {
-      // Path unchanged: keep walking, but durations may have changed (a
-      // tile under the walker became rail). Refresh current segment dur.
-      if (s.path.length >= 2 && s.segIdx < s.path.length - 1) {
-        const next = s.path[s.segIdx + 1];
-        s.segDur = durEnter(next[0], next[1]);
-      }
+    if (samePath(s.path, c.path)) continue;
+    const wasEmpty = s.path.length < 2;
+    s.path = c.path.slice();
+    if (s.path.length < 2) {
+      for (const d of s.dots) d.active = false;
       continue;
     }
-    s.path = c.path.slice();
-    s.segIdx = 0;
-    // Negative segT = pre-roll pause before walking, scaled by phase offset
-    // so the four commuters don't all kick off at the same instant.
-    s.segT = -s.phaseOffset * 500;
-    if (s.path.length >= 2) {
-      const next = s.path[1];
-      s.segDur = durEnter(next[0], next[1]);
+    const maxPos = s.path.length - 1;
+    if (wasEmpty) {
+      // First valid path: prime the trail evenly so the route lights up
+      // immediately rather than slowly filling from the start tile.
+      let i = 0;
+      for (let pos = 0; pos < maxPos && i < s.dots.length; pos += DOT_SPACING) {
+        s.dots[i].pos = pos;
+        s.dots[i].active = true;
+        i++;
+      }
+      for (; i < s.dots.length; i++) s.dots[i].active = false;
     } else {
-      s.segDur = 0;
+      // Path changed mid-stream: drop any dot now past the new endpoint.
+      // The spawner will refill gaps within a couple of seconds. Existing
+      // dots keep their fractional position, so they snap to the new tile
+      // at the same path index — slight visual jump, but it reads as
+      // "the route changed" which is exactly what just happened.
+      for (const d of s.dots) {
+        if (d.active && d.pos >= maxPos) d.active = false;
+      }
     }
   }
 }
 
+function trySpawn(s) {
+  // Spawn a dot at pos=0 whenever the rear-most active dot is at least
+  // DOT_SPACING tiles in. This keeps roughly even spacing at the start;
+  // dots redistribute naturally as fast/slow segments stretch/bunch them.
+  let rear = Infinity;
+  for (const d of s.dots) if (d.active && d.pos < rear) rear = d.pos;
+  if (rear < DOT_SPACING) return;
+  const slot = s.dots.find((d) => !d.active);
+  if (!slot) return;
+  slot.pos = 0;
+  slot.active = true;
+}
+
 let animLastT = performance.now();
 function animTick(now) {
-  const dt = Math.min(64, now - animLastT); // clamp to avoid huge jumps on tab refocus
+  const dt = Math.min(64, now - animLastT); // clamp huge jumps on tab refocus
   animLastT = now;
 
-  for (const [id, s] of animState) {
-    const dot = animDots.get(id);
+  for (const [, s] of animState) {
     if (!s.path || s.path.length < 2) {
-      dot.setAttribute('opacity', '0');
+      for (const el of s.els) el.setAttribute('opacity', '0');
       continue;
     }
+    const maxPos = s.path.length - 1;
 
-    s.segT += dt;
-    // Walk forward through any completed segments this frame.
-    while (s.segDur > 0 && s.segT >= s.segDur) {
-      s.segT -= s.segDur;
-      s.segIdx++;
-      if (s.segIdx >= s.path.length - 1) {
-        // Arrived at destination; pause, then loop back to start.
-        s.segIdx = 0;
-        s.segT -= DEST_PAUSE;
-      }
-      const next = s.path[s.segIdx + 1];
-      s.segDur = durEnter(next[0], next[1]);
+    for (const d of s.dots) {
+      if (!d.active) continue;
+      const seg = Math.floor(d.pos);
+      if (seg < 0 || seg >= maxPos) { d.active = false; continue; }
+      const to = s.path[seg + 1];
+      d.pos += dt / durEnter(to[0], to[1]);
+      if (d.pos >= maxPos) d.active = false;
     }
 
-    if (s.segT < 0) {
-      // Pre-roll / dest pause: park at the current "from" tile, invisible.
-      const from = s.path[s.segIdx];
-      const c = tileCenters.get(`${from[0]},${from[1]}`);
-      if (c) {
-        dot.setAttribute('cx', c.cx);
-        dot.setAttribute('cy', c.cy);
-      }
-      dot.setAttribute('opacity', '0');
-      continue;
-    }
+    trySpawn(s);
 
-    const from = s.path[s.segIdx];
-    const to = s.path[s.segIdx + 1];
-    const a = tileCenters.get(`${from[0]},${from[1]}`);
-    const b = tileCenters.get(`${to[0]},${to[1]}`);
-    if (!a || !b) { dot.setAttribute('opacity', '0'); continue; }
-    const t = s.segDur > 0 ? s.segT / s.segDur : 0;
-    dot.setAttribute('cx', a.cx + (b.cx - a.cx) * t);
-    dot.setAttribute('cy', a.cy + (b.cy - a.cy) * t);
-    dot.setAttribute('opacity', '1');
+    for (let i = 0; i < s.dots.length; i++) {
+      const d = s.dots[i];
+      const el = s.els[i];
+      if (!d.active) { el.setAttribute('opacity', '0'); continue; }
+      const seg = Math.floor(d.pos);
+      const tFrac = d.pos - seg;
+      const from = s.path[seg];
+      const to = s.path[seg + 1];
+      const a = tileCenters.get(`${from[0]},${from[1]}`);
+      const b = tileCenters.get(`${to[0]},${to[1]}`);
+      if (!a || !b) { el.setAttribute('opacity', '0'); continue; }
+      el.setAttribute('cx', a.cx + (b.cx - a.cx) * tFrac);
+      el.setAttribute('cy', a.cy + (b.cy - a.cy) * tFrac);
+      el.setAttribute('opacity', '1');
+    }
   }
 
   requestAnimationFrame(animTick);
