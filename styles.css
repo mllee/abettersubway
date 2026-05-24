@@ -299,7 +299,11 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  overflow: visible;
+  /* Clip out-of-bounds children. Earlier dot-pool walkers parked at
+     (-10,-10) when inactive and were leaking past the grid's top-left
+     corner. The line refactor in dac6e40 dropped that pattern, but keep
+     the clip on so any future overlay primitive doesn't reintroduce it. */
+  overflow: hidden;
   z-index: 4;
 }
 /* Each commuter's route is a dashed SVG path that scrolls its dash offset
