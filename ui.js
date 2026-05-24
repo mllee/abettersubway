@@ -1,11 +1,19 @@
 // ui.js — A Better Subway, UI layer.
 //
-// Renders the 15x15 board, the HUD, and the side panel. Click an open tile
-// to place a rail; click a rail to remove it. Click-and-drag paints a
-// continuous strip in the same mode as the first tile. The Clear button
-// wipes all placed rail.
+// Renders the active level's grid, the HUD, the city title, the floating
+// hover card, and the result modal. Wires up rail placement, drag-paint,
+// the Clear button, the Submit button, and the prev/next level switcher.
+//
+// Grid size, obstacles, commuters, tiers, and which sides of the board
+// show off-grid ocean all come from the active level (loaded from
+// levels.js / localStorage). Nothing in this file is level-specific.
 
-import { LEVEL_1 } from './level1.js';
+import {
+  LEVELS,
+  getActiveLevelIndex,
+  setActiveLevelIndex,
+  getActiveLevel,
+} from './levels.js';
 import {
   createState,
   placeRail,
@@ -13,6 +21,12 @@ import {
   computeRoutes,
 } from './mechanics.js';
 import { VERSION, BUILD } from './version.js';
+
+// Active level (loaded from localStorage). The rest of this file treats
+// LEVEL_1 as a const because the prev/next arrows swap levels by
+// reloading the page — no in-place level swap needed.
+const ACTIVE_LEVEL = getActiveLevel();
+const LEVEL_1 = ACTIVE_LEVEL.data;
 
 const hud = document.getElementById('hud');
 const app = document.getElementById('app');
@@ -22,6 +36,23 @@ hoverCard.className = 'hover-card';
 hoverCard.style.display = 'none';
 document.body.appendChild(hoverCard);
 
+// City title — plain pixel-font caption above the grid (no panel chrome).
+// Just tells the player what city they're looking at. The actual level
+// switching lives in the success modal.
+{
+  const cityTitle = document.createElement('div');
+  cityTitle.className = 'city-title';
+  cityTitle.textContent = ACTIVE_LEVEL.name.toUpperCase();
+  document.body.insertBefore(cityTitle, app);
+}
+
+function switchLevel(delta) {
+  const total = LEVELS.length;
+  const next = (getActiveLevelIndex() + delta + total) % total;
+  setActiveLevelIndex(next);
+  location.reload();
+}
+
 const state = createState(LEVEL_1);
 
 // Per-commuter palette. The same color drives the person's shirt, the
@@ -29,10 +60,10 @@ const state = createState(LEVEL_1);
 // so who-goes-where reads at a glance. Kept in sync with --commuter-*
 // CSS vars in styles.css.
 const COMMUTER_META = {
-  A: { destLabel: 'work', wall: '#c84a3a', roofDark: '#7a2418', roofLight: '#e36655' },
-  B: { destLabel: 'work', wall: '#3a6fb5', roofDark: '#1a3a78', roofLight: '#5e92d5' },
-  C: { destLabel: 'work', wall: '#2a9d8f', roofDark: '#10665a', roofLight: '#4ec0b0' },
-  D: { destLabel: 'work', wall: '#8a4a9a', roofDark: '#4a1a5c', roofLight: '#aa6ab8' },
+  A: { name: 'Zaven',   destLabel: 'work', wall: '#c84a3a', roofDark: '#7a2418', roofLight: '#e36655' },
+  B: { name: 'Wayne',   destLabel: 'work', wall: '#3a6fb5', roofDark: '#1a3a78', roofLight: '#5e92d5' },
+  C: { name: 'Matt',    destLabel: 'work', wall: '#2a9d8f', roofDark: '#10665a', roofLight: '#4ec0b0' },
+  D: { name: 'Anthony', destLabel: 'work', wall: '#8a4a9a', roofDark: '#4a1a5c', roofLight: '#aa6ab8' },
 };
 
 // ---------- SVG pixel sprites ----------
@@ -85,6 +116,49 @@ function treeSprite() {
     [9, 9, 1, 4, '#3a2010'],
     [8, 13, 2, 1, '#3a2010'],
   ], 'tree');
+}
+
+function waterSprite() {
+  // Drawn over a flat blue tile (set via CSS). Wave caps are short
+  // light/dark dashes scattered so adjacent water tiles don't tile
+  // into an obvious repeating pattern.
+  return makeSprite('0 0 16 16', [
+    [3, 3, 3, 1, '#cfe6f5'],
+    [10, 5, 3, 1, '#cfe6f5'],
+    [5, 8, 3, 1, '#cfe6f5'],
+    [11, 11, 3, 1, '#cfe6f5'],
+    [2, 13, 3, 1, '#cfe6f5'],
+    [3, 4, 4, 1, '#2b5a85'],
+    [10, 6, 4, 1, '#2b5a85'],
+    [5, 9, 4, 1, '#2b5a85'],
+    [11, 12, 4, 1, '#2b5a85'],
+    [2, 14, 4, 1, '#2b5a85'],
+  ], 'water');
+}
+
+function hillSprite() {
+  // A small two-peak mountain — chunky outline, light cap, shaded right
+  // side. Reads as a hill at ~30px.
+  return makeSprite('0 0 16 16', [
+    [2, 13, 12, 1, '#4a7a3a'],
+    [2, 14, 12, 1, '#3a5a2a'],
+    [4, 12, 8, 1, '#3a2010'],
+    [4, 11, 1, 1, '#3a2010'],
+    [11, 11, 1, 1, '#3a2010'],
+    [5, 10, 1, 1, '#3a2010'],
+    [10, 10, 1, 1, '#3a2010'],
+    [6, 9, 1, 1, '#3a2010'],
+    [9, 9, 1, 1, '#3a2010'],
+    [7, 8, 1, 1, '#3a2010'],
+    [8, 8, 1, 1, '#3a2010'],
+    [5, 11, 6, 1, '#8a6a4a'],
+    [6, 10, 4, 1, '#8a6a4a'],
+    [7, 9, 2, 1, '#8a6a4a'],
+    [5, 12, 3, 1, '#a8886a'],
+    [6, 11, 2, 1, '#a8886a'],
+    [7, 7, 2, 1, '#3a2010'],
+    [7, 8, 2, 1, '#dcd6c8'],
+  ], 'hill');
 }
 
 function personSprite(id) {
@@ -223,11 +297,15 @@ function railSprite(conn) {
   if (n) vrail(0, 22);
   if (s) vrail(22, 44);
 
-  // Isolated tile: a tiny platform stub so it doesn't look broken.
+  // Isolated tile: draw as a short horizontal segment in the middle so it
+  // unmistakably reads as rail. Ends are tapered (don't touch the tile
+  // edges) so it's visually clear that nothing connects from either side.
   if (!n && !e && !s && !w) {
-    rects.push([14, 14, 16, 16, '#3a3a44']);
-    rects.push([16, 16, 12, 12, railMid]);
-    rects.push([18, 18, 8, 8, railHi]);
+    for (let x = 8; x < 36; x += 8) {
+      rects.push([x, 12, 5, 20, tie]);
+      rects.push([x + 5, 12, 1, 20, tieDark]);
+    }
+    hrail(6, 38);
   }
 
   for (const [x, y, w_, h_, fill] of rects) {
@@ -245,6 +323,11 @@ function railSprite(conn) {
 // ---------- Grid build ----------
 
 const parkSet = new Set(LEVEL_1.parks.map(([x, y]) => `${x},${y}`));
+// Optional visual subsets — when a level splits its impassable tiles into
+// water/hills/greenParks, we render distinct sprites. Otherwise everything
+// in `parks` gets the green-park treatment.
+const waterSet = new Set((LEVEL_1.water || []).map(([x, y]) => `${x},${y}`));
+const hillsSet = new Set((LEVEL_1.hills || []).map(([x, y]) => `${x},${y}`));
 const startByKey = new Map();
 const destByKey = new Map();
 for (const c of LEVEL_1.commuters) {
@@ -258,6 +341,10 @@ const timeBadgeById = new Map();
 
 app.style.setProperty('--cols', LEVEL_1.width);
 app.style.setProperty('--rows', LEVEL_1.height);
+// Which sides of #app get the off-grid ocean strip (the rest get dirt).
+// Defaults to top + right if the level doesn't specify.
+const edges = Array.isArray(LEVEL_1.oceanEdges) ? LEVEL_1.oceanEdges : ['top', 'right'];
+app.dataset.oceanEdges = edges.join(' ');
 app.innerHTML = '';
 
 for (let y = 1; y <= LEVEL_1.height; y++) {
@@ -268,7 +355,13 @@ for (let y = 1; y <= LEVEL_1.height; y++) {
     div.dataset.x = String(x);
     div.dataset.y = String(y);
 
-    if (parkSet.has(k)) {
+    if (waterSet.has(k)) {
+      div.classList.add('water');
+      div.appendChild(waterSprite());
+    } else if (hillsSet.has(k)) {
+      div.classList.add('hill');
+      div.appendChild(hillSprite());
+    } else if (parkSet.has(k)) {
       div.classList.add('park');
       div.appendChild(treeSprite());
     } else if (startByKey.has(k)) {
@@ -477,6 +570,14 @@ function clearAllRail() {
   render();
 }
 
+function revealGoldSolution() {
+  const gold = LEVEL_1.goldSolution;
+  if (!Array.isArray(gold)) return;
+  state.rail.clear();
+  for (const [x, y] of gold) placeRail(state, x, y);
+  render();
+}
+
 function render() {
   currentRoutes = computeRoutes(state);
 
@@ -524,8 +625,14 @@ function renderHud(r) {
   const title = document.createElement('h1');
   title.className = 'hud-title';
   title.innerHTML =
-    `Add train tracks to help everyone get to work in ` +
-    `<span class="deadline">${deadline} minutes</span>!`;
+    `Help get everyone to work in under ` +
+    `<span class="deadline">${deadline} minutes</span>!` +
+    `<span class="hud-subtitle">Our city got budget for new train tracks, ` +
+    `but we can't build them everywhere.</span>` +
+    `<span class="hud-subtitle">People will automatically take the shortest path ` +
+    `— click and drag to add trains to their commutes!</span>` +
+    `<span class="hud-subtitle hud-metrics">Walking <strong>2 min</strong>/square · ` +
+    `Train <strong>30 sec</strong>/square</span>`;
   top.appendChild(title);
 
   const submit = document.createElement('button');
@@ -536,33 +643,11 @@ function renderHud(r) {
 
   hud.appendChild(top);
 
-  // Bottom row: speeds, rail count, Clear, version.
+  // Bottom row: rail-tile budget, Clear, version. Per-tile speeds moved
+  // up into the title sub-line so the player learns the rules from the
+  // header instead of two separate places.
   const bottom = document.createElement('div');
   bottom.className = 'hud-row bottom';
-
-  const walk = document.createElement('span');
-  walk.className = 'hud-sub-item';
-  walk.innerHTML =
-    `<span class="label">Walking:</span> ` +
-    `<span class="value">${LEVEL_1.walkCost} min/tile</span>`;
-  bottom.appendChild(walk);
-
-  const sep1 = document.createElement('span');
-  sep1.className = 'hud-sep';
-  sep1.textContent = '·';
-  bottom.appendChild(sep1);
-
-  const rail = document.createElement('span');
-  rail.className = 'hud-sub-item';
-  rail.innerHTML =
-    `<span class="label">Rail:</span> ` +
-    `<span class="value">${LEVEL_1.railCost} min/tile</span>`;
-  bottom.appendChild(rail);
-
-  const sep2 = document.createElement('span');
-  sep2.className = 'hud-sep';
-  sep2.textContent = '·';
-  bottom.appendChild(sep2);
 
   const railCount = document.createElement('span');
   railCount.className = 'hud-rail-count';
@@ -594,7 +679,6 @@ function formatTime(t) {
 function statusFor(time) {
   const d = LEVEL_1.deadline;
   if (!Number.isFinite(time) || time > d) return 'red';
-  if (time > d - 2) return 'yellow'; // within 2 min of deadline
   return 'green';
 }
 
@@ -628,7 +712,7 @@ function showHoverCard(id, anchorEl) {
   const info = document.createElement('div');
   const name = document.createElement('div');
   name.className = 'hc-name';
-  name.textContent = `Commuter ${id}`;
+  name.textContent = meta.name;
   const dest = document.createElement('div');
   dest.className = 'hc-dest';
   dest.textContent = `→ ${meta.destLabel}`;
@@ -742,11 +826,74 @@ function showResultModal(r) {
   message.textContent = messageForResult(r);
   modal.appendChild(message);
 
+  const actions = document.createElement('div');
+  actions.className = 'modal-actions';
+  modal.appendChild(actions);
+
   const btn = document.createElement('button');
   btn.className = 'modal-btn';
   btn.textContent = r.allPass ? 'KEEP BUILDING' : 'TRY AGAIN';
   btn.addEventListener('click', () => closeModal());
-  modal.appendChild(btn);
+  actions.appendChild(btn);
+
+  // Optional "Reveal best solution" — only when we have one to show and
+  // only after the player has earned a passing solution (otherwise the
+  // option feels punitive). Two-step: first click swaps the action row
+  // for an "Are you sure?" prompt, second click reveals and closes.
+  if (r.allPass && Array.isArray(LEVEL_1.goldSolution) && LEVEL_1.goldSolution.length) {
+    const reveal = document.createElement('button');
+    reveal.className = 'modal-btn ghost';
+    reveal.textContent = 'REVEAL BEST SOLUTION';
+    reveal.addEventListener('click', () => askToReveal());
+    actions.appendChild(reveal);
+  }
+
+  // Level switcher — prev/next buttons appear in the modal so the player
+  // moves to other cities after they've engaged with this one. Hidden
+  // when only one level is registered.
+  if (LEVELS.length > 1) {
+    const nav = document.createElement('div');
+    nav.className = 'modal-level-nav';
+
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'modal-btn ghost level-nav-btn';
+    const prevIdx = (getActiveLevelIndex() - 1 + LEVELS.length) % LEVELS.length;
+    prevBtn.textContent = `◀ ${LEVELS[prevIdx].name.toUpperCase()}`;
+    prevBtn.addEventListener('click', () => switchLevel(-1));
+    nav.appendChild(prevBtn);
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'modal-btn ghost level-nav-btn';
+    const nextIdx = (getActiveLevelIndex() + 1) % LEVELS.length;
+    nextBtn.textContent = `${LEVELS[nextIdx].name.toUpperCase()} ▶`;
+    nextBtn.addEventListener('click', () => switchLevel(+1));
+    nav.appendChild(nextBtn);
+
+    modal.appendChild(nav);
+  }
+
+  function askToReveal() {
+    actions.innerHTML = '';
+    const warn = document.createElement('div');
+    warn.className = 'modal-confirm-text';
+    warn.textContent = 'This will spoil the puzzle. Are you sure?';
+    actions.appendChild(warn);
+
+    const cancel = document.createElement('button');
+    cancel.className = 'modal-btn';
+    cancel.textContent = 'CANCEL';
+    cancel.addEventListener('click', () => closeModal());
+    actions.appendChild(cancel);
+
+    const confirm = document.createElement('button');
+    confirm.className = 'modal-btn primary';
+    confirm.textContent = 'REVEAL';
+    confirm.addEventListener('click', () => {
+      revealGoldSolution();
+      closeModal();
+    });
+    actions.appendChild(confirm);
+  }
 
   function closeModal() {
     backdrop.remove();
@@ -800,13 +947,29 @@ function buildScoreBlock(r) {
     `<span class="score-unit">rail tiles</span>`;
   block.appendChild(your);
 
-  const best = document.createElement('div');
-  best.className = 'score-row best-row';
-  best.innerHTML =
-    `<span class="score-label">BEST KNOWN</span>` +
-    `<span class="score-num">${LEVEL_1.gold}</span>` +
-    `<span class="score-unit">rail tiles</span>`;
-  block.appendChild(best);
+  // Tier table — show all three thresholds so the player sees both what
+  // they earned and what's needed to climb. The row matching r.medal gets
+  // a "← YOU" tag + emphasized styling.
+  const tiers = document.createElement('div');
+  tiers.className = 'tier-table';
+  const rows = [
+    { medal: 'gold',   label: 'GOLD',   cap: LEVEL_1.gold },
+    { medal: 'silver', label: 'SILVER', cap: LEVEL_1.silver },
+    { medal: 'bronze', label: 'BRONZE', cap: LEVEL_1.bronze },
+  ];
+  for (const t of rows) {
+    const row = document.createElement('div');
+    row.className = 'tier-row';
+    row.dataset.medal = t.medal;
+    if (t.medal === r.medal) row.classList.add('current');
+    row.innerHTML =
+      `<span class="tier-star">★</span>` +
+      `<span class="tier-label">${t.label}</span>` +
+      `<span class="tier-cap">${t.cap} tiles or fewer</span>` +
+      `<span class="tier-you">${t.medal === r.medal ? '← YOU' : ''}</span>`;
+    tiers.appendChild(row);
+  }
+  block.appendChild(tiers);
 
   return block;
 }
@@ -835,7 +998,7 @@ function buildLateList(r) {
       row.className = 'late-row';
       row.dataset.id = c.id;
       row.innerHTML =
-        `<span>Commuter ${c.id}</span>` +
+        `<span>${COMMUTER_META[c.id]?.name ?? c.id}</span>` +
         `<span class="lr-time">${formatTime(c.time)}</span>`;
       list.appendChild(row);
     }

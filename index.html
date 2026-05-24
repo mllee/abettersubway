@@ -7,18 +7,17 @@
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
+  <!-- ui.js paints into these three regions. The loading span is the
+       initial visible state before the module evaluates. -->
   <header id="hud">
-    <!-- Lane C: populate with X/4 on time, worst commute, rail used, medal -->
     <span class="loading">loading…</span>
   </header>
 
-  <main id="app">
-    <!-- Lane C: render 15x15 grid into here -->
-  </main>
+  <main id="app"></main>
 
-  <aside id="commuters">
-    <!-- Lane C: render commuter cards into here -->
-  </aside>
+  <!-- Kept for layout-history reasons (used to be the commuter sidebar);
+       ui.js now hides it via CSS and uses a floating hover card instead. -->
+  <aside id="commuters"></aside>
 
   <script type="module" src="./ui.js"></script>
 </body>

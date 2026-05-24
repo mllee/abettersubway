@@ -1,15 +1,29 @@
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
 
 :root {
-  --tile-size: 44px;
+  /* --tile-size auto-shrinks so the 15x15 board + HUD always fits in the
+     viewport. The two calc() terms reserve room for body padding, HUD
+     height, gap, plus the grid's own border/padding/gaps. Capped at 44px
+     on big screens; floors at 8px so calc never goes negative on absurd
+     sizes. Resizing the window reflows live. */
+  --tile-size: max(8px, min(
+    44px,
+    calc((100vw - 168px) / 15),
+    calc((100vh - 420px) / 15)
+  ));
   --gap: 2px;
 
   --bg: #f3e9c7;
   --bg-pattern: #ead9a2;
 
   --panel: #fff5e1;
-  --panel-border: #6b4423;
-  --panel-shadow: #2a1f1530;
+  /* --panel-border: soft tan frame stroke for #hud / #app / modals —
+     barely-there separation so the content reads, not a chunky brown
+     cage. --btn-bg keeps the old heavy brown for buttons where cream
+     text needs the contrast. --panel-shadow softened to a near-ghost. */
+  --panel-border: #d8c2a0;
+  --btn-bg: #6b4423;
+  --panel-shadow: #2a1f1518;
 
   --text: #2a1f15;
   --text-dim: #7a6a55;
@@ -18,7 +32,6 @@
   --tile-hover: #e2cf94;
 
   --green: #4ec24a;
-  --yellow: #f5b223;
   --red: #e54b3b;
 
   --highlight: #ffd54f;
@@ -39,7 +52,13 @@
 html, body { margin: 0; padding: 0; }
 
 body {
-  min-height: 100vh;
+  /* Lock to one viewport tall, no scroll. The grid auto-shrinks via the
+     vertical reserve in --tile-size above; overflow:hidden is the safety
+     net if the HUD ever grows past the reserve (the grid would clip
+     instead of pushing the page taller). */
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background:
     repeating-conic-gradient(var(--bg) 0deg 90deg, var(--bg-pattern) 90deg 180deg)
       0 0 / 24px 24px;
@@ -51,7 +70,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 20px;
+  /* Generous vertical padding so the HUD doesn't kiss the top of the
+     viewport and the grid has visible breathing room below. The
+     vertical reserve in --tile-size accounts for this. */
+  padding: 32px 20px;
   align-items: center;
 }
 
@@ -61,8 +83,10 @@ body {
 
 .sprite-svg {
   display: block;
-  width: 28px;
-  height: 28px;
+  /* All sprite sizes are ratios of --tile-size so they stay proportional
+     when the grid auto-shrinks on small viewports. */
+  width: calc(var(--tile-size) * 0.64);
+  height: calc(var(--tile-size) * 0.64);
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   pointer-events: none;
@@ -79,7 +103,7 @@ body {
   padding: 14px 18px;
   background: var(--panel);
   color: var(--text);
-  border: 3px solid var(--panel-border);
+  border: 2px solid var(--panel-border);
   border-radius: 4px;
   box-shadow: 4px 4px 0 var(--panel-shadow);
 }
@@ -109,9 +133,33 @@ body {
   line-height: 1.2;
   letter-spacing: 1px;
   color: var(--text);
+  /* Keep the main goal on a single line; the subtitle below is display:block
+     so it lives on its own line(s) below and is free to wrap. */
+  white-space: nowrap;
 }
 #hud .hud-title .deadline {
   color: var(--red);
+}
+#hud .hud-title .hud-subtitle {
+  display: block;
+  margin-top: 4px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  color: var(--text-dim);
+  white-space: normal; /* allow wrap; parent forces nowrap on the goal line */
+}
+#hud .hud-title .hud-subtitle strong {
+  color: var(--text);
+  font-weight: 700;
+}
+/* Speed-metrics row sits a bit lower and slightly smaller — reads as
+   reference info, not a primary instruction. */
+#hud .hud-title .hud-subtitle.hud-metrics {
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.85;
 }
 
 #hud .hud-sub-item {
@@ -140,11 +188,38 @@ body {
   margin-left: 4px;
 }
 
+/* ---------- City title (slim caption above the grid) ---------- */
+
+.city-title {
+  font-family: "Press Start 2P", "VT323", ui-monospace, monospace;
+  font-size: 14px;
+  letter-spacing: 3px;
+  color: var(--text);
+  text-align: center;
+  user-select: none;
+  margin: 4px 0 -4px;
+}
+
+/* Level switcher inside the success/fail modal — full-width row of two
+   ghost buttons under the main action(s). */
+.modal-level-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+.modal-level-nav .level-nav-btn {
+  font-size: 13px;
+  padding: 8px 10px;
+  letter-spacing: 1px;
+  width: 100%;
+}
+
 #hud .hud-btn {
   font-family: "VT323", "Press Start 2P", ui-monospace, monospace;
   font-size: 17px;
   line-height: 1;
-  background: var(--panel-border);
+  background: var(--btn-bg);
   color: var(--panel);
   border: 2px solid #2a1f15;
   border-radius: 3px;
@@ -181,17 +256,81 @@ body {
   grid-template-columns: repeat(var(--cols, 15), var(--tile-size));
   grid-template-rows: repeat(var(--rows, 15), var(--tile-size));
   gap: var(--gap);
-  padding: 12px;
-  background: #c9a872;
-  background-image: linear-gradient(135deg, #c9a872 0 50%, #b89461 50% 100%);
-  border: 3px solid var(--panel-border);
+  /* 40px padding all around — the dirt fill shows through anywhere
+     the level doesn't request an ocean strip. */
+  padding: 40px;
+  /* Dirt base layer; per-edge ocean strips stack on top via the rules
+     below, keyed off data-ocean-edges. */
+  background: linear-gradient(135deg, #e3d2b0 0 50%, #d8c39c 50% 100%);
+  border: 2px solid var(--panel-border);
   border-radius: 4px;
   box-shadow: 4px 4px 0 var(--panel-shadow);
   width: max-content;
+  position: relative;
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
+  isolation: isolate;
 }
+/* Off-grid ocean strips — one pseudo-element per side, only painted
+   when the matching token appears in data-ocean-edges. */
+#app::before,
+#app::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(135deg,
+      #b8d4e6 0 8px,
+      #aac6dc 8px 9px,
+      #b8d4e6 9px 16px);
+  display: none;
+  z-index: 0;
+}
+/* Reuse ::before for one of {top, left} and ::after for one of {right, bottom}. */
+#app[data-ocean-edges~="top"]::before {
+  display: block;
+  top: 0; left: 0; right: 0; height: 40px;
+}
+#app[data-ocean-edges~="left"]::before {
+  display: block;
+  top: 0; left: 0; bottom: 0; width: 40px;
+}
+#app[data-ocean-edges~="right"]::after {
+  display: block;
+  top: 0; right: 0; bottom: 0; width: 40px;
+}
+#app[data-ocean-edges~="bottom"]::after {
+  display: block;
+  left: 0; right: 0; bottom: 0; height: 40px;
+}
+/* When BOTH top AND left are requested, ::before becomes an L: layer a
+   second gradient on top so the left strip also shows. (Pseudo-element
+   limit means we can only do up to two edges this way; for 3+ edges
+   we'd need another approach. Currently we only ship top+right (SF)
+   and left+right (NYC), so two-pseudo coverage is enough.) */
+#app[data-ocean-edges~="top"][data-ocean-edges~="left"]::before {
+  /* Both top and left painted on ::before. Top is the 40px height,
+     left the 40px width — together an L. */
+  top: 0; left: 0; right: 0; bottom: 0;
+  width: auto; height: auto;
+  background:
+    repeating-linear-gradient(135deg,
+      #b8d4e6 0 8px, #aac6dc 8px 9px, #b8d4e6 9px 16px) top    / 100% 40px no-repeat,
+    repeating-linear-gradient(135deg,
+      #b8d4e6 0 8px, #aac6dc 8px 9px, #b8d4e6 9px 16px) left   / 40px 100% no-repeat;
+}
+#app[data-ocean-edges~="right"][data-ocean-edges~="bottom"]::after {
+  top: 0; left: 0; right: 0; bottom: 0;
+  width: auto; height: auto;
+  background:
+    repeating-linear-gradient(135deg,
+      #b8d4e6 0 8px, #aac6dc 8px 9px, #b8d4e6 9px 16px) right  / 40px 100% no-repeat,
+    repeating-linear-gradient(135deg,
+      #b8d4e6 0 8px, #aac6dc 8px 9px, #b8d4e6 9px 16px) bottom / 100% 40px no-repeat;
+}
+/* Keep the tile children above the ::before/::after layers. */
+#app > .tile { position: relative; z-index: 1; }
 #app .tile { -webkit-user-drag: none; }
 
 .tile {
@@ -223,7 +362,30 @@ body {
   cursor: not-allowed;
   box-shadow: inset 0 0 0 1px #00000020;
 }
-.tile.park .sprite-svg { width: 30px; height: 30px; }
+.tile.park .sprite-svg { width: calc(var(--tile-size) * 0.68); height: calc(var(--tile-size) * 0.68); }
+
+/* Water (NE bay pocket): solid blue with diagonal sheen + wave caps. */
+.tile.water {
+  background:
+    repeating-linear-gradient(45deg,
+      #4a8bb8 0 6px,
+      #3f7aa3 6px 7px,
+      #4a8bb8 7px 14px),
+    #4a8bb8;
+  cursor: not-allowed;
+  box-shadow: inset 0 0 0 1px #00000025;
+}
+.tile.water .sprite-svg { width: calc(var(--tile-size) * 0.68); height: calc(var(--tile-size) * 0.68); }
+
+/* Hill (Twin Peaks): warm tan dirt with a mountain sprite. */
+.tile.hill {
+  background:
+    repeating-linear-gradient(135deg, transparent 0 6px, #00000012 6px 7px),
+    #d4b483;
+  cursor: not-allowed;
+  box-shadow: inset 0 0 0 1px #00000025;
+}
+.tile.hill .sprite-svg { width: calc(var(--tile-size) * 0.68); height: calc(var(--tile-size) * 0.68); }
 
 /* Start + destination tiles: soft tint of accent color + chunky frame.
    Both ends of one commuter's commute carry the same color, so pairing
@@ -234,8 +396,8 @@ body {
   background-color: color-mix(in srgb, var(--accent) 22%, var(--tile-bg));
   box-shadow: inset 0 0 0 3px var(--accent);
 }
-.tile.start .sprite-svg { width: 30px; height: 34px; }
-.tile.dest  .sprite-svg { width: 34px; height: 38px; }
+.tile.start .sprite-svg { width: calc(var(--tile-size) * 0.68); height: calc(var(--tile-size) * 0.77); }
+.tile.dest  .sprite-svg { width: calc(var(--tile-size) * 0.77); height: calc(var(--tile-size) * 0.86); }
 
 .tile.start-A, .tile.dest-a { --accent: var(--commuter-A); }
 .tile.start-B, .tile.dest-b { --accent: var(--commuter-B); }
@@ -243,10 +405,9 @@ body {
 .tile.start-D, .tile.dest-d { --accent: var(--commuter-D); }
 
 /* Rail tile: neutral tile background; the actual rails + ties are drawn
-   by the neighbor-aware <svg.rail-svg> child added in ui.js. The dark
-   gravel base was too heavy — the rail SVG carries enough visual weight
-   on its own, and the lighter ground makes the commuter trails easier
-   to read across the board. */
+   by the neighbor-aware <svg.rail-svg> child added in ui.js. Keeping
+   the ground light lets the colored commuter trails read cleanly
+   when they cross a rail. */
 .tile.rail {
   background-color: var(--tile-bg);
 }
@@ -258,6 +419,11 @@ body {
   height: 100%;
   pointer-events: none;
   display: block;
+  /* Faded so the colored commuter dotted-lines read cleanly when they
+     flow over rail. We lose a bit of rail fidelity, but the rail's
+     identity is already carried by the shape; the contrast wasn't
+     pulling its weight. */
+  opacity: 0.45;
 }
 
 .time-badge {
@@ -275,9 +441,8 @@ body {
   text-align: center;
   box-shadow: 1px 1px 0 #00000030;
 }
-.time-badge[data-status="green"]  { background: var(--green); }
-.time-badge[data-status="yellow"] { background: var(--yellow); color: #2a1f15; }
-.time-badge[data-status="red"]    { background: var(--red); }
+.time-badge[data-status="green"] { background: var(--green); }
+.time-badge[data-status="red"]   { background: var(--red); }
 
 .tile.highlight {
   box-shadow: inset 0 0 0 2px rgba(245, 180, 0, 0.55);
@@ -391,9 +556,8 @@ body {
   margin-top: 4px;
   line-height: 1;
 }
-.hover-card[data-status="green"]  .hc-time { color: var(--green); }
-.hover-card[data-status="yellow"] .hc-time { color: var(--yellow); }
-.hover-card[data-status="red"]    .hc-time { color: var(--red); }
+.hover-card[data-status="green"] .hc-time { color: var(--green); }
+.hover-card[data-status="red"]   .hc-time { color: var(--red); }
 .hover-card .hc-delta {
   text-align: center;
   font-size: 11px;
@@ -427,7 +591,7 @@ body {
 
 .result-modal {
   background: var(--panel);
-  border: 4px solid var(--panel-border);
+  border: 2px solid var(--panel-border);
   border-radius: 4px;
   box-shadow: 6px 6px 0 #00000050;
   padding: 28px 36px;
@@ -535,6 +699,53 @@ body {
   color: var(--text-dim);
 }
 
+/* Tier table — shows all three medal thresholds with the current tier
+   highlighted. Each row has: colored star, tier name, threshold, "← YOU"
+   marker on the achieved row. */
+.tier-table {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--panel-border);
+}
+.tier-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.tier-row .tier-star { font-size: 14px; line-height: 1; }
+.tier-row[data-medal="gold"]   .tier-star { color: var(--gold-medal); }
+.tier-row[data-medal="silver"] .tier-star { color: var(--silver-medal); }
+.tier-row[data-medal="bronze"] .tier-star { color: var(--bronze-medal); }
+.tier-row .tier-label {
+  font-family: "VT323", "Press Start 2P", ui-monospace, monospace;
+  font-size: 16px;
+  letter-spacing: 1px;
+}
+.tier-row[data-medal="gold"]   .tier-label { color: var(--gold-medal); }
+.tier-row[data-medal="silver"] .tier-label { color: var(--silver-medal); }
+.tier-row[data-medal="bronze"] .tier-label { color: var(--bronze-medal); }
+.tier-row .tier-cap { text-align: left; }
+.tier-row .tier-you {
+  font-family: "VT323", "Press Start 2P", ui-monospace, monospace;
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 700;
+}
+.tier-row.current {
+  background: #fff5e1;
+  box-shadow: inset 0 0 0 2px currentColor;
+  color: var(--text);
+}
+.tier-row.current .tier-cap { color: var(--text); }
+
 .late-list {
   text-align: left;
   display: grid;
@@ -566,7 +777,7 @@ body {
 .modal-btn {
   font-family: "VT323", "Press Start 2P", ui-monospace, monospace;
   font-size: 20px;
-  background: var(--panel-border);
+  background: var(--btn-bg);
   color: var(--panel);
   border: 3px solid #2a1f15;
   border-radius: 4px;
@@ -581,4 +792,35 @@ body {
 .modal-btn:active {
   transform: translate(2px, 2px);
   box-shadow: 1px 1px 0 #2a1f15;
+}
+
+/* Ghost variant for the secondary "Reveal" affordance — quieter so the
+   primary action (KEEP BUILDING) wins the eye. */
+.modal-btn.ghost {
+  background: transparent;
+  color: var(--text-dim);
+  border-color: var(--text-dim);
+  box-shadow: 3px 3px 0 var(--text-dim);
+}
+.modal-btn.ghost:hover { background: #00000010; color: var(--text); }
+
+.modal-btn.primary {
+  background: var(--commuter-A);
+}
+.modal-btn.primary:hover { background: #e05c4a; }
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-confirm-text {
+  width: 100%;
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 4px;
+  text-align: center;
 }
