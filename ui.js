@@ -1,91 +1,348 @@
-// ui.js — A Better Subway, browser UI.
-// Renders a 15×15 grid into #app, commuter cards into #commuters, and a
-// status bar into #hud. Click a tile to place/remove rail. Hover a commuter
-// card to highlight that commuter's path.
+// ui.js — A Better Subway, UI layer.
+//
+// Renders the 15x15 board, the HUD, and the side panel. Click an open tile
+// to place a rail; click a rail to remove it. Click-and-drag paints a
+// continuous strip in the same mode as the first tile. The Clear button
+// wipes all placed rail.
 
 import { LEVEL_1 } from './level1.js';
-import { createState, placeRail, removeRail, computeRoutes } from './mechanics.js';
-import { VERSION, BUILD } from './version.js';
+import {
+  createState,
+  placeRail,
+  removeRail,
+  computeRoutes,
+} from './mechanics.js';
 
-const level = LEVEL_1;
-const state = createState(level);
+const hud = document.getElementById('hud');
+const app = document.getElementById('app');
+const sideEl = document.getElementById('commuters');
 
-const parkSet = new Set(level.parks.map(([x, y]) => `${x},${y}`));
-const startMap = new Map();
-const destMap = new Map();
-for (const c of level.commuters) {
-  startMap.set(`${c.start[0]},${c.start[1]}`, c.id);
-  destMap.set(`${c.dest[0]},${c.dest[1]}`, c.id);
+const state = createState(LEVEL_1);
+
+// Each commuter has a distinct sprite + destination type so the board
+// reads like a small town instead of four abstract letters.
+const COMMUTER_META = {
+  A: { destType: 'office', destLabel: 'office' },
+  B: { destType: 'school', destLabel: 'school' },
+  C: { destType: 'shop',   destLabel: 'shop'   },
+  D: { destType: 'clinic', destLabel: 'clinic' },
+};
+
+// ---------- SVG pixel sprites ----------
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function makeSprite(viewBox, rects, klass) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', viewBox);
+  svg.setAttribute('shape-rendering', 'crispEdges');
+  svg.setAttribute('class', `sprite-svg ${klass || ''}`.trim());
+  for (const [x, y, w, h, fill] of rects) {
+    const r = document.createElementNS(SVG_NS, 'rect');
+    r.setAttribute('x', x);
+    r.setAttribute('y', y);
+    r.setAttribute('width', w);
+    r.setAttribute('height', h);
+    r.setAttribute('fill', fill);
+    svg.appendChild(r);
+  }
+  return svg;
 }
 
-const app = document.getElementById('app');
-const hud = document.getElementById('hud');
-const cards = document.getElementById('commuters');
+function treeSprite() {
+  return makeSprite('0 0 16 16', [
+    // crown outline (dark)
+    [4, 1, 8, 1, '#1d4a1d'],
+    [3, 2, 10, 1, '#1d4a1d'],
+    [2, 3, 12, 1, '#1d4a1d'],
+    [2, 4, 12, 1, '#1d4a1d'],
+    [2, 5, 12, 1, '#1d4a1d'],
+    [3, 6, 10, 1, '#1d4a1d'],
+    [3, 7, 10, 1, '#1d4a1d'],
+    [4, 8, 8, 1, '#1d4a1d'],
+    // crown fill (mid green)
+    [5, 2, 6, 1, '#2d6a2d'],
+    [4, 3, 8, 1, '#2d6a2d'],
+    [3, 4, 9, 1, '#2d6a2d'],
+    [4, 5, 8, 1, '#2d6a2d'],
+    [4, 6, 8, 1, '#2d6a2d'],
+    [5, 7, 6, 1, '#2d6a2d'],
+    // highlights
+    [5, 3, 2, 1, '#4ea34e'],
+    [9, 3, 2, 1, '#4ea34e'],
+    [4, 4, 2, 1, '#4ea34e'],
+    // trunk
+    [7, 9, 2, 4, '#5a3a1a'],
+    [6, 12, 4, 2, '#5a3a1a'],
+    // trunk shadow
+    [9, 9, 1, 4, '#3a2010'],
+    [8, 13, 2, 1, '#3a2010'],
+  ], 'tree');
+}
 
-app.style.setProperty('--cols', level.width);
-app.style.setProperty('--rows', level.height);
+function personSprite(id) {
+  // Each commuter gets a distinct outfit palette.
+  const palette = {
+    A: { hair: '#3a2010', skin: '#f5c89a', shirt: '#c84a3a', pants: '#3a3a5a', shoe: '#1a1a1a' }, // brown hair, red shirt
+    B: { hair: '#daa520', skin: '#ffd5b5', shirt: '#3a6fb5', pants: '#3a3a5a', shoe: '#1a1a1a' }, // blonde, blue shirt
+    C: { hair: '#5a3a1a', skin: '#f5c89a', shirt: '#e5b223', pants: '#5a3a1a', shoe: '#3a2010' }, // kid, yellow shirt
+    D: { hair: '#cccccc', skin: '#f5d5b5', shirt: '#8a4a9a', pants: '#4a3a2a', shoe: '#3a2010' }, // gray hair, purple
+  }[id];
 
-const tiles = new Map();
-for (let y = 1; y <= level.height; y++) {
-  for (let x = 1; x <= level.width; x++) {
+  return makeSprite('0 0 16 18', [
+    // hair (top + sides)
+    [5, 0, 6, 1, palette.hair],
+    [4, 1, 8, 2, palette.hair],
+    [4, 3, 1, 2, palette.hair],
+    [11, 3, 1, 2, palette.hair],
+    // face
+    [5, 3, 6, 4, palette.skin],
+    // eyes
+    [6, 5, 1, 1, '#000000'],
+    [9, 5, 1, 1, '#000000'],
+    // neck
+    [7, 7, 2, 1, palette.skin],
+    // shirt body
+    [4, 8, 8, 4, palette.shirt],
+    // arms
+    [3, 8, 1, 4, palette.shirt],
+    [12, 8, 1, 4, palette.shirt],
+    // hands
+    [3, 12, 1, 1, palette.skin],
+    [12, 12, 1, 1, palette.skin],
+    // shirt shadow
+    [4, 11, 8, 1, '#00000040'],
+    // pants
+    [5, 12, 2, 4, palette.pants],
+    [9, 12, 2, 4, palette.pants],
+    // shoes
+    [4, 16, 3, 1, palette.shoe],
+    [9, 16, 3, 1, palette.shoe],
+  ], `person person-${id}`);
+}
+
+function buildingSprite(type) {
+  if (type === 'office') {
+    // Tall blue-gray office tower with grid of lit windows
+    return makeSprite('0 0 16 18', [
+      // roof cap
+      [2, 1, 12, 1, '#3a4258'],
+      [2, 2, 12, 1, '#3a4258'],
+      // body
+      [2, 3, 12, 13, '#7c89a8'],
+      // body shading
+      [13, 3, 1, 13, '#5a6680'],
+      [2, 15, 12, 1, '#5a6680'],
+      // windows (3 cols x 3 rows)
+      [3, 4, 2, 2, '#ffe066'],
+      [7, 4, 2, 2, '#ffe066'],
+      [11, 4, 2, 2, '#ffe066'],
+      [3, 7, 2, 2, '#ffe066'],
+      [7, 7, 2, 2, '#ffd54f'],
+      [11, 7, 2, 2, '#ffe066'],
+      [3, 10, 2, 2, '#ffe066'],
+      [7, 10, 2, 2, '#ffe066'],
+      [11, 10, 2, 2, '#ffe066'],
+      // door
+      [7, 13, 2, 3, '#3a2010'],
+      [7, 13, 2, 1, '#1a1008'],
+      // ground line
+      [1, 16, 14, 1, '#5a4a3a'],
+    ], 'building office');
+  }
+  if (type === 'school') {
+    // Red brick school with a bell tower on top
+    return makeSprite('0 0 16 18', [
+      // bell tower
+      [7, 0, 2, 2, '#aaaaaa'],
+      [6, 2, 4, 1, '#5a3a2a'],
+      // roof
+      [3, 3, 10, 1, '#5a3a2a'],
+      [2, 4, 12, 1, '#7a4a32'],
+      // body
+      [2, 5, 12, 11, '#c4523a'],
+      // brick courses (darker lines)
+      [2, 8, 12, 1, '#9a3a28'],
+      [2, 12, 12, 1, '#9a3a28'],
+      // windows
+      [4, 6, 2, 2, '#cce0ff'],
+      [10, 6, 2, 2, '#cce0ff'],
+      [4, 9, 2, 2, '#cce0ff'],
+      [10, 9, 2, 2, '#cce0ff'],
+      // door (arched look)
+      [7, 12, 2, 4, '#3a2010'],
+      [6, 13, 1, 3, '#3a2010'],
+      [9, 13, 1, 3, '#3a2010'],
+      // ground
+      [1, 16, 14, 1, '#5a4a3a'],
+    ], 'building school');
+  }
+  if (type === 'shop') {
+    // Storefront with a striped green awning
+    return makeSprite('0 0 16 18', [
+      // sign
+      [3, 1, 10, 2, '#d8c890'],
+      [3, 1, 10, 1, '#a89860'],
+      // awning base
+      [2, 3, 12, 2, '#3a6a4a'],
+      [2, 4, 12, 1, '#2a5038'],
+      // awning stripes
+      [3, 3, 1, 2, '#5fb88a'],
+      [6, 3, 1, 2, '#5fb88a'],
+      [9, 3, 1, 2, '#5fb88a'],
+      [12, 3, 1, 2, '#5fb88a'],
+      // body
+      [2, 5, 12, 11, '#e6d6a8'],
+      [13, 5, 1, 11, '#b89868'],
+      // big display window
+      [3, 6, 10, 6, '#a8c8e0'],
+      [3, 6, 10, 1, '#5a7088'],
+      [3, 11, 10, 1, '#5a7088'],
+      [3, 6, 1, 6, '#5a7088'],
+      [12, 6, 1, 6, '#5a7088'],
+      // door
+      [7, 12, 2, 4, '#5a3a1a'],
+      // doorknob
+      [8, 14, 1, 1, '#e5b223'],
+      // ground
+      [1, 16, 14, 1, '#5a4a3a'],
+    ], 'building shop');
+  }
+  if (type === 'clinic') {
+    // White clinic with red cross
+    return makeSprite('0 0 16 18', [
+      // roof
+      [2, 2, 12, 1, '#c44a3a'],
+      [3, 3, 10, 1, '#c44a3a'],
+      // body white
+      [2, 4, 12, 12, '#f0f0f0'],
+      [13, 4, 1, 12, '#c0c0c0'],
+      [2, 15, 12, 1, '#c0c0c0'],
+      // red cross (medical)
+      [7, 5, 2, 4, '#d04a3a'],
+      [6, 6, 4, 2, '#d04a3a'],
+      // windows
+      [3, 10, 2, 2, '#a8c8e0'],
+      [11, 10, 2, 2, '#a8c8e0'],
+      // door
+      [7, 12, 2, 4, '#5a3a1a'],
+      [8, 14, 1, 1, '#e5b223'],
+      // ground
+      [1, 16, 14, 1, '#5a4a3a'],
+    ], 'building clinic');
+  }
+  // Fallback
+  return makeSprite('0 0 16 18', [[2, 2, 12, 14, '#888888']], 'building');
+}
+
+// ---------- Grid build ----------
+
+const parkSet = new Set(LEVEL_1.parks.map(([x, y]) => `${x},${y}`));
+const startByKey = new Map();
+const destByKey = new Map();
+for (const c of LEVEL_1.commuters) {
+  startByKey.set(`${c.start[0]},${c.start[1]}`, c.id);
+  destByKey.set(`${c.dest[0]},${c.dest[1]}`, c.id.toLowerCase());
+}
+
+const tileByKey = new Map();
+const personTileById = new Map();
+const timeBadgeById = new Map();
+
+app.style.setProperty('--cols', LEVEL_1.width);
+app.style.setProperty('--rows', LEVEL_1.height);
+app.innerHTML = '';
+
+for (let y = 1; y <= LEVEL_1.height; y++) {
+  for (let x = 1; x <= LEVEL_1.width; x++) {
     const k = `${x},${y}`;
     const div = document.createElement('div');
     div.className = 'tile';
-    div.dataset.x = x;
-    div.dataset.y = y;
-    if (parkSet.has(k)) div.classList.add('park');
-    let commuterId = null;
-    if (startMap.has(k)) {
-      commuterId = startMap.get(k);
-      div.classList.add('start');
-      div.dataset.commuter = commuterId;
-      div.textContent = commuterId;
-    } else if (destMap.has(k)) {
-      commuterId = destMap.get(k);
-      div.classList.add('dest');
-      div.dataset.commuter = commuterId;
-      div.textContent = commuterId.toLowerCase();
+    div.dataset.x = String(x);
+    div.dataset.y = String(y);
+
+    if (parkSet.has(k)) {
+      div.classList.add('park');
+      div.appendChild(treeSprite());
+    } else if (startByKey.has(k)) {
+      const id = startByKey.get(k);
+      div.classList.add('start', `start-${id}`);
+      div.dataset.commuter = id;
+      div.appendChild(personSprite(id));
+
+      const badge = document.createElement('span');
+      badge.className = 'time-badge';
+      badge.dataset.id = id;
+      badge.textContent = '--';
+      div.appendChild(badge);
+
+      personTileById.set(id, div);
+      timeBadgeById.set(id, badge);
+
+      div.addEventListener('mouseenter', () => highlightCommuter(id));
+      div.addEventListener('mouseleave', clearHighlight);
+    } else if (destByKey.has(k)) {
+      const lower = destByKey.get(k);
+      const upper = lower.toUpperCase();
+      const meta = COMMUTER_META[upper];
+      div.classList.add('dest', `dest-${lower}`);
+      div.dataset.commuter = upper;
+      div.appendChild(buildingSprite(meta.destType));
+
+      div.addEventListener('mouseenter', () => highlightCommuter(upper));
+      div.addEventListener('mouseleave', clearHighlight);
     }
-    if (commuterId) {
-      // Hover a commuter's start or dest tile to preview their path.
-      div.addEventListener('mouseenter', () => {
-        if (dragMode) return;
-        highlightPath(commuterId);
-      });
-      div.addEventListener('mouseleave', () => {
-        if (dragMode) return;
-        highlightPath(null);
-      });
-    }
+
+    div.addEventListener('mousedown', (e) => onTileMouseDown(e, x, y, div));
+    div.addEventListener('mouseenter', () => onTileMouseEnter(x, y));
     app.appendChild(div);
-    tiles.set(k, div);
+    tileByKey.set(k, div);
   }
 }
 
-// Drag-to-paint. Uses pointer events on the grid container plus
-// elementFromPoint to find the tile under the cursor, because on Chrome
-// (Mac) a mousedown on a tile implicitly captures subsequent move events
-// to that tile — mouseenter on siblings doesn't fire during a real drag.
-let dragMode = null;       // 'place' | 'remove' | null
-let lastDragKey = null;    // last "x,y" we acted on, to avoid double-apply
+window.addEventListener('mouseup', () => { dragMode = null; });
+window.addEventListener('blur',    () => { dragMode = null; });
 
-function tileFromPoint(clientX, clientY) {
-  const el = document.elementFromPoint(clientX, clientY);
-  if (!el || !el.classList || !el.classList.contains('tile')) return null;
-  return el;
+// ---------- Render ----------
+
+let currentRoutes = null;
+let lastAllPass = false;
+let dragMode = null; // 'place' | 'remove' | null
+
+function onTileMouseDown(e, x, y, el) {
+  if (e.button !== 0) return; // left-click only
+  e.preventDefault();
+  const k = `${x},${y}`;
+  if (state.rail.has(k)) {
+    dragMode = 'remove';
+    removeRail(state, x, y);
+    render();
+    return;
+  }
+  dragMode = 'place';
+  const res = placeRail(state, x, y);
+  if (!res.ok) {
+    // First-tile rejection: flash. Subsequent sweep rejects are silent
+    // so dragging across parks/starts/dests doesn't strobe the grid.
+    el.classList.remove('reject');
+    void el.offsetWidth;
+    el.classList.add('reject');
+    setTimeout(() => el.classList.remove('reject'), 320);
+    return;
+  }
+  render();
 }
 
-function applyAt(el, isFirstPress) {
-  const x = Number(el.dataset.x);
-  const y = Number(el.dataset.y);
+function onTileMouseEnter(x, y) {
+  if (!dragMode) return;
   const k = `${x},${y}`;
   if (k === lastDragKey) return false;
   lastDragKey = k;
   if (dragMode === 'place' && !state.rail.has(k)) {
-    const res = placeRail(state, x, y);
-    if (res.ok) return true;
-    if (isFirstPress) flashReject(el, res.reason);
-    return false;
+    if (placeRail(state, x, y).ok) changed = true;
+  } else if (dragMode === 'remove' && state.rail.has(k)) {
+    removeRail(state, x, y);
+    changed = true;
   }
   if (dragMode === 'remove' && state.rail.has(k)) {
     removeRail(state, x, y);
@@ -94,127 +351,323 @@ function applyAt(el, isFirstPress) {
   return false;
 }
 
-function onAppPointerDown(e) {
-  if (e.pointerType === 'mouse' && e.button !== 0) return;
-  const el = e.target.closest && e.target.closest('.tile');
-  if (!el) return;
-  e.preventDefault();
-  // Release implicit pointer capture so pointermove fires on siblings,
-  // not just on the originating tile.
-  if (e.target.releasePointerCapture) {
-    try { e.target.releasePointerCapture(e.pointerId); } catch {}
-  }
-  const x = Number(el.dataset.x);
-  const y = Number(el.dataset.y);
-  const k = `${x},${y}`;
-  dragMode = state.rail.has(k) ? 'remove' : 'place';
-  lastDragKey = null;
-  if (applyAt(el, true)) render();
-}
-
-function onAppPointerMove(e) {
-  if (!dragMode) return;
-  const el = tileFromPoint(e.clientX, e.clientY);
-  if (!el) return;
-  if (applyAt(el, false)) render();
-}
-
-function endDrag() {
-  dragMode = null;
-  lastDragKey = null;
-}
-
-app.addEventListener('pointerdown', onAppPointerDown);
-app.addEventListener('pointermove', onAppPointerMove);
-window.addEventListener('pointerup', endDrag);
-window.addEventListener('pointercancel', endDrag);
-window.addEventListener('blur', endDrag);
-// Prevent native drag of any descendant element (safety belt).
-app.addEventListener('dragstart', (e) => e.preventDefault());
-
 function clearAllRail() {
   if (state.rail.size === 0) return;
   state.rail.clear();
   render();
 }
 
-function flashReject(el, reason) {
-  el.classList.add('reject');
-  el.title = `cannot place: ${reason}`;
-  setTimeout(() => el.classList.remove('reject'), 200);
-}
-
-function statusClass(time, deadline) {
-  if (time === Infinity) return 'fail';
-  if (time > deadline) return 'late';
-  if (time > deadline - 2) return 'warn';
-  return 'ok';
-}
-
-let currentRoutes = null;
-let hovered = null;
-
 function render() {
   currentRoutes = computeRoutes(state);
 
-  for (const [k, el] of tiles) {
-    if (state.rail.has(k)) el.classList.add('rail');
-    else el.classList.remove('rail');
-    el.classList.remove('path');
+  for (const [k, el] of tileByKey) {
+    el.classList.toggle('rail', state.rail.has(k));
   }
 
-  const onTime = currentRoutes.commuters.filter(c => c.time <= level.deadline).length;
-  const total = currentRoutes.commuters.length;
-  const worst = currentRoutes.worst;
-  const worstStr = worst
-    ? `${worst.id} ${worst.time === Infinity ? '∞' : worst.time.toFixed(1)} min`
-    : '—';
-  const medalText = currentRoutes.medal === 'fail'
-    ? '✗ fail'
-    : `🏅 ${currentRoutes.medal}`;
-  hud.innerHTML = `
-    <span class="hud-item"><b>${onTime}/${total}</b> on time</span>
-    <span class="hud-item">Worst: <b>${worstStr}</b></span>
-    <span class="hud-item">Rail: <b>${currentRoutes.railCount}</b> / ${level.hardCap}</span>
-    <span class="hud-item">Gold ${level.gold} · Silver ${level.silver} · Bronze ${level.bronze}</span>
-    <span class="hud-item medal medal-${currentRoutes.medal}">${medalText}</span>
-    <button id="clear-btn" class="hud-btn" ${currentRoutes.railCount === 0 ? 'disabled' : ''}>Clear rail</button>
-    <span class="hud-item version" title="Build ${BUILD}. If this number lags behind GitHub, Pages hasn't redeployed yet — hard-refresh.">v${VERSION}</span>
-  `;
-  document.getElementById('clear-btn').addEventListener('click', clearAllRail);
-
-  cards.innerHTML = '';
   for (const c of currentRoutes.commuters) {
-    const card = document.createElement('div');
-    const sc = statusClass(c.time, level.deadline);
-    card.className = `card status-${sc}`;
-    card.dataset.commuter = c.id;
-    const timeStr = c.time === Infinity ? 'no path' : `${c.time.toFixed(1)} min`;
-    const overBy = c.time > level.deadline && c.time !== Infinity
-      ? ` (late by ${(c.time - level.deadline).toFixed(1)})`
-      : c.time <= level.deadline ? ' ✓' : '';
-    card.innerHTML = `
-      <span class="card-id">${c.id} → ${c.id.toLowerCase()}</span>
-      <span class="card-time">${timeStr}${overBy}</span>
-    `;
-    card.addEventListener('mouseenter', () => highlightPath(c.id));
-    card.addEventListener('mouseleave', () => highlightPath(null));
-    cards.appendChild(card);
+    const status = statusFor(c.time);
+    const badge = timeBadgeById.get(c.id);
+    if (badge) {
+      badge.textContent = Number.isFinite(c.time) ? Math.round(c.time) : '∞';
+      badge.dataset.status = status;
+    }
+    const tile = personTileById.get(c.id);
+    if (tile) tile.dataset.status = status;
   }
 
-  if (hovered) highlightPath(hovered);
+  renderHud(currentRoutes);
+  renderPlaceholder();
+
+  // Success modal: trigger once per false→true transition of allPass.
+  if (currentRoutes.allPass && !lastAllPass) {
+    showSuccessModal(currentRoutes);
+  }
+  lastAllPass = currentRoutes.allPass;
 }
 
-function highlightPath(id) {
-  hovered = id;
-  for (const el of tiles.values()) el.classList.remove('path');
-  if (!id || !currentRoutes) return;
-  const c = currentRoutes.commuters.find(c => c.id === id);
-  if (!c) return;
-  for (const [x, y] of c.path) {
-    const el = tiles.get(`${x},${y}`);
-    if (el) el.classList.add('path');
+function renderHud(r) {
+  const onTime = r.commuters.filter((c) => c.time <= LEVEL_1.deadline).length;
+  const total = r.commuters.length;
+  hud.innerHTML = '';
+
+  const title = document.createElement('span');
+  title.className = 'hud-title';
+  title.textContent = 'A BETTER SUBWAY';
+  hud.appendChild(title);
+
+  const parts = [
+    `${onTime}/${total} on time`,
+    `Rail ${r.railCount}/${LEVEL_1.hardCap}`,
+    `Gold ${LEVEL_1.gold}`,
+    `Medal: ${r.medal.toUpperCase()}`,
+  ];
+
+  parts.forEach((p) => {
+    const sep = document.createElement('span');
+    sep.className = 'hud-sep';
+    sep.textContent = '·';
+    hud.appendChild(sep);
+
+    const span = document.createElement('span');
+    span.className = 'hud-item';
+    if (p.startsWith('Medal')) span.dataset.medal = r.medal;
+    span.textContent = p;
+    hud.appendChild(span);
+  });
+
+  const clearBtn = document.createElement('button');
+  clearBtn.className = 'hud-btn';
+  clearBtn.textContent = 'CLEAR RAIL';
+  clearBtn.disabled = r.railCount === 0;
+  clearBtn.addEventListener('click', clearAllRail);
+  hud.appendChild(clearBtn);
+
+  hud.dataset.medal = r.medal;
+}
+
+function formatTime(t) {
+  if (!Number.isFinite(t)) return '∞';
+  return `${t.toFixed(1)} min`;
+}
+
+function statusFor(time) {
+  const d = LEVEL_1.deadline;
+  if (!Number.isFinite(time) || time > d) return 'red';
+  if (time > d - 2) return 'yellow'; // within 2 min of deadline
+  return 'green';
+}
+
+// ---------- Sidebar ----------
+
+function renderPlaceholder() {
+  sideEl.innerHTML = '';
+  sideEl.classList.remove('detail');
+
+  const wrap = document.createElement('div');
+  wrap.className = 'placeholder';
+
+  const title = document.createElement('div');
+  title.className = 'ph-title';
+  title.textContent = 'HOVER A COMMUTER';
+  wrap.appendChild(title);
+
+  const sub = document.createElement('div');
+  sub.className = 'ph-sub';
+  sub.textContent =
+    'Each person on the grid has a commute. Hover one to see who, where, and how long.';
+  wrap.appendChild(sub);
+
+  const legend = document.createElement('div');
+  legend.className = 'ph-legend';
+
+  const rows = [
+    [treeSprite(),            'park — no rail allowed'],
+    [makeRailSwatch(),         'rail tile — click to place'],
+    [personSprite('A'),       'commuter — going somewhere'],
+    [buildingSprite('office'),'destination — work or school'],
+  ];
+  for (const [icon, label] of rows) {
+    const row = document.createElement('div');
+    const sp = document.createElement('span');
+    sp.className = 'lg-sprite';
+    sp.appendChild(icon);
+    const tx = document.createElement('span');
+    tx.textContent = label;
+    row.appendChild(sp);
+    row.appendChild(tx);
+    legend.appendChild(row);
   }
+  wrap.appendChild(legend);
+  sideEl.appendChild(wrap);
+}
+
+function makeRailSwatch() {
+  const div = document.createElement('span');
+  div.className = 'rail-swatch';
+  return div;
+}
+
+function showDetail(id) {
+  if (!currentRoutes) return;
+  const c = currentRoutes.commuters.find((x) => x.id === id);
+  if (!c) return;
+  const meta = COMMUTER_META[id];
+  const status = statusFor(c.time);
+  const deadline = LEVEL_1.deadline;
+  const delta = c.time - deadline;
+  const deltaStr = !Number.isFinite(c.time)
+    ? 'no route — stuck'
+    : delta > 0
+      ? `${delta.toFixed(1)} min late`
+      : delta === 0
+        ? 'right on the bell'
+        : `${Math.abs(delta).toFixed(1)} min to spare`;
+
+  sideEl.innerHTML = '';
+  sideEl.classList.add('detail');
+
+  const card = document.createElement('div');
+  card.className = 'detail-card';
+  card.dataset.status = status;
+
+  const header = document.createElement('div');
+  header.className = 'detail-header';
+  const ps = document.createElement('span');
+  ps.className = 'detail-sprite';
+  ps.appendChild(personSprite(id));
+  const arrow = document.createElement('span');
+  arrow.className = 'detail-arrow';
+  arrow.textContent = '→';
+  const ds = document.createElement('span');
+  ds.className = 'detail-sprite';
+  ds.appendChild(buildingSprite(meta.destType));
+  header.appendChild(ps);
+  header.appendChild(arrow);
+  header.appendChild(ds);
+  card.appendChild(header);
+
+  const label = document.createElement('div');
+  label.className = 'detail-label';
+  label.textContent = `Commuter ${id} → ${meta.destLabel}`;
+  card.appendChild(label);
+
+  const time = document.createElement('div');
+  time.className = 'detail-time';
+  time.textContent = formatTime(c.time);
+  card.appendChild(time);
+
+  const delt = document.createElement('div');
+  delt.className = 'detail-delta';
+  delt.textContent = deltaStr;
+  card.appendChild(delt);
+
+  const dl = document.createElement('div');
+  dl.className = 'detail-deadline';
+  dl.textContent = `Deadline: ${deadline.toFixed(0)} min`;
+  card.appendChild(dl);
+
+  sideEl.appendChild(card);
+}
+
+function highlightCommuter(id) {
+  if (!currentRoutes) return;
+  const c = currentRoutes.commuters.find((x) => x.id === id);
+  if (!c) return;
+  clearTileHighlights();
+  for (const [x, y] of c.path) {
+    const el = tileByKey.get(`${x},${y}`);
+    if (el) el.classList.add('highlight');
+  }
+  showDetail(id);
+}
+
+function clearHighlight() {
+  clearTileHighlights();
+  renderPlaceholder();
+}
+
+function clearTileHighlights() {
+  for (const el of tileByKey.values()) el.classList.remove('highlight');
+}
+
+// ---------- Success modal ----------
+
+function showSuccessModal(r) {
+  const existing = document.getElementById('success-modal');
+  if (existing) existing.remove();
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.id = 'success-modal';
+  backdrop.dataset.medal = r.medal;
+
+  const modal = document.createElement('div');
+  modal.className = 'success-modal';
+  modal.dataset.medal = r.medal;
+
+  const medalWrap = document.createElement('div');
+  medalWrap.className = 'medal-wrap';
+
+  const medalIcon = document.createElement('div');
+  medalIcon.className = 'medal-icon';
+  medalIcon.dataset.medal = r.medal;
+  medalIcon.textContent = '★';
+  medalWrap.appendChild(medalIcon);
+
+  const stars = document.createElement('div');
+  stars.className = 'medal-stars';
+  const starCount = r.medal === 'gold' ? 3 : r.medal === 'silver' ? 2 : 1;
+  stars.textContent = '★'.repeat(starCount) + '☆'.repeat(3 - starCount);
+  medalWrap.appendChild(stars);
+
+  const medalLabel = document.createElement('div');
+  medalLabel.className = 'medal-label';
+  medalLabel.dataset.medal = r.medal;
+  medalLabel.textContent = r.medal.toUpperCase();
+  medalWrap.appendChild(medalLabel);
+
+  modal.appendChild(medalWrap);
+
+  const title = document.createElement('h2');
+  title.className = 'modal-title';
+  title.textContent = 'EVERYONE ON TIME!';
+  modal.appendChild(title);
+
+  const scoreBlock = document.createElement('div');
+  scoreBlock.className = 'modal-scores';
+
+  const yourRow = document.createElement('div');
+  yourRow.className = 'score-row your-row';
+  yourRow.innerHTML = `
+    <span class="score-label">YOUR SOLUTION</span>
+    <span class="score-num">${r.railCount}</span>
+    <span class="score-unit">rail tiles</span>
+  `;
+
+  const bestRow = document.createElement('div');
+  bestRow.className = 'score-row best-row';
+  bestRow.innerHTML = `
+    <span class="score-label">BEST KNOWN</span>
+    <span class="score-num">${LEVEL_1.gold}</span>
+    <span class="score-unit">rail tiles</span>
+  `;
+
+  scoreBlock.appendChild(yourRow);
+  scoreBlock.appendChild(bestRow);
+  modal.appendChild(scoreBlock);
+
+  const message = document.createElement('div');
+  message.className = 'modal-message';
+  message.textContent = messageForResult(r);
+  modal.appendChild(message);
+
+  const btn = document.createElement('button');
+  btn.className = 'modal-btn';
+  btn.textContent = 'KEEP PLAYING';
+  btn.addEventListener('click', () => backdrop.remove());
+  modal.appendChild(btn);
+
+  backdrop.addEventListener('click', (e) => {
+    if (e.target === backdrop) backdrop.remove();
+  });
+  document.addEventListener('keydown', escClose);
+  function escClose(e) {
+    if (e.key === 'Escape') {
+      backdrop.remove();
+      document.removeEventListener('keydown', escClose);
+    }
+  }
+
+  backdrop.appendChild(modal);
+  document.body.appendChild(backdrop);
+}
+
+function messageForResult(r) {
+  const gold = LEVEL_1.gold;
+  const delta = r.railCount - gold;
+  if (r.medal === 'gold') return 'Maximum optimization. You found the shared corridor.';
+  if (r.medal === 'silver') return `Solid. ${delta} tile${delta === 1 ? '' : 's'} above the gold solution — can you trim further?`;
+  return `Solved. ${delta} tiles above gold. There's a much shorter solution hiding in there.`;
 }
 
 render();
