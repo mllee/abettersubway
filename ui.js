@@ -5,6 +5,7 @@
 
 import { LEVEL_1 } from './level1.js';
 import { createState, placeRail, removeRail, computeRoutes } from './mechanics.js';
+import { VERSION, BUILD } from './version.js';
 
 const level = LEVEL_1;
 const state = createState(level);
@@ -178,6 +179,7 @@ function render() {
     <span class="hud-item">Gold ${level.gold} · Silver ${level.silver} · Bronze ${level.bronze}</span>
     <span class="hud-item medal medal-${currentRoutes.medal}">${medalText}</span>
     <button id="clear-btn" class="hud-btn" ${currentRoutes.railCount === 0 ? 'disabled' : ''}>Clear rail</button>
+    <span class="hud-item version" title="Build ${BUILD}. If this number lags behind GitHub, Pages hasn't redeployed yet — hard-refresh.">v${VERSION}</span>
   `;
   document.getElementById('clear-btn').addEventListener('click', clearAllRail);
 

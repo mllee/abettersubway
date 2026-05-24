@@ -71,6 +71,13 @@ body {
 .hud-btn:active:not(:disabled) { background: #e6e3da; }
 .hud-btn:disabled { color: #aaa; cursor: not-allowed; }
 
+.hud-item.version {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #999;
+  cursor: help;
+}
+
 #app {
   grid-area: app;
   display: grid;
