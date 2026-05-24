@@ -302,24 +302,39 @@ body {
   overflow: visible;
   z-index: 4;
 }
-.commuter-dot {
-  fill: var(--dot-color);
-  opacity: 0.6;
-  transition: r 160ms ease-out, opacity 160ms ease-out;
+/* Each commuter's route is a dashed SVG path that scrolls its dash offset
+   continuously, reading as a flowing dotted line rather than discrete
+   people. Round line caps + tiny dash length turn each dash into a soft
+   round dot. The four commuters are staggered with negative animation-
+   delay so their patterns don't line up. */
+.commuter-line {
+  fill: none;
+  stroke: var(--line-color);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 0.5 11;
+  opacity: 0.55;
+  transition: opacity 180ms ease-out, stroke-width 180ms ease-out;
+  animation: line-flow 520ms linear infinite;
 }
-.commuter-dot.dot-A { --dot-color: var(--commuter-A); }
-.commuter-dot.dot-B { --dot-color: var(--commuter-B); }
-.commuter-dot.dot-C { --dot-color: var(--commuter-C); }
-.commuter-dot.dot-D { --dot-color: var(--commuter-D); }
+.commuter-line.line-A { --line-color: var(--commuter-A); animation-delay:    0ms; }
+.commuter-line.line-B { --line-color: var(--commuter-B); animation-delay:  -90ms; }
+.commuter-line.line-C { --line-color: var(--commuter-C); animation-delay: -180ms; }
+.commuter-line.line-D { --line-color: var(--commuter-D); animation-delay: -270ms; }
 
-/* When a commuter is hovered, their trail brightens; the others fade so
-   the eye can follow just the focused route. */
-#app[data-highlight] .commuter-dot { opacity: 0.15; }
-#app[data-highlight="A"] .commuter-dot.dot-A,
-#app[data-highlight="B"] .commuter-dot.dot-B,
-#app[data-highlight="C"] .commuter-dot.dot-C,
-#app[data-highlight="D"] .commuter-dot.dot-D {
-  opacity: 0.95;
+@keyframes line-flow {
+  to { stroke-dashoffset: -11.5; } /* one full dash+gap cycle */
+}
+
+/* When a commuter is hovered, their line brightens and thickens slightly;
+   the others fade so the eye can follow just the focused route. */
+#app[data-highlight] .commuter-line { opacity: 0.12; }
+#app[data-highlight="A"] .commuter-line.line-A,
+#app[data-highlight="B"] .commuter-line.line-B,
+#app[data-highlight="C"] .commuter-line.line-C,
+#app[data-highlight="D"] .commuter-line.line-D {
+  opacity: 0.9;
+  stroke-width: 5;
 }
 
 .tile.reject {
