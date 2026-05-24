@@ -160,6 +160,84 @@ function buildingSprite(id) {
   ], `building building-${id}`);
 }
 
+// Rail sprite — drawn per tile based on which of its 4 neighbors are also
+// rail. Connections {n,e,s,w} produce horizontals, verticals, L-corners,
+// T-junctions, crosses, and isolated stubs from the same primitive.
+function railSprite(conn) {
+  const { n = false, e = false, s = false, w = false } = conn;
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 44 44');
+  svg.setAttribute('shape-rendering', 'crispEdges');
+  svg.setAttribute('class', 'rail-svg');
+  svg.setAttribute('preserveAspectRatio', 'none');
+
+  const tie = '#7a4a1a';
+  const tieDark = '#4a2810';
+  const railHi = '#f0f0f4';
+  const railMid = '#b8b8c0';
+  const railLo = '#5a5a64';
+
+  const rects = [];
+
+  // Ties go perpendicular to the rail. Spaced every 8px, 5px thick.
+  if (e || w) {
+    const xs = w ? 0 : 16;
+    const xe = e ? 44 : 28;
+    for (let x = xs; x < xe; x += 8) {
+      rects.push([x, 12, 5, 20, tie]);
+      rects.push([x + 5, 12, 1, 20, tieDark]);
+    }
+  }
+  if (n || s) {
+    const ys = n ? 0 : 16;
+    const ye = s ? 44 : 28;
+    for (let y = ys; y < ye; y += 8) {
+      rects.push([12, y, 20, 5, tie]);
+      rects.push([12, y + 5, 20, 1, tieDark]);
+    }
+  }
+
+  // Silver rails: two parallel 3px stripes per direction, with shading.
+  function hrail(xa, xb) {
+    rects.push([xa, 16, xb - xa, 1, railHi]);
+    rects.push([xa, 17, xb - xa, 1, railMid]);
+    rects.push([xa, 18, xb - xa, 1, railLo]);
+    rects.push([xa, 26, xb - xa, 1, railHi]);
+    rects.push([xa, 27, xb - xa, 1, railMid]);
+    rects.push([xa, 28, xb - xa, 1, railLo]);
+  }
+  function vrail(ya, yb) {
+    rects.push([16, ya, 1, yb - ya, railHi]);
+    rects.push([17, ya, 1, yb - ya, railMid]);
+    rects.push([18, ya, 1, yb - ya, railLo]);
+    rects.push([26, ya, 1, yb - ya, railHi]);
+    rects.push([27, ya, 1, yb - ya, railMid]);
+    rects.push([28, ya, 1, yb - ya, railLo]);
+  }
+  if (w) hrail(0, 22);
+  if (e) hrail(22, 44);
+  if (n) vrail(0, 22);
+  if (s) vrail(22, 44);
+
+  // Isolated tile: a tiny platform stub so it doesn't look broken.
+  if (!n && !e && !s && !w) {
+    rects.push([14, 14, 16, 16, '#3a3a44']);
+    rects.push([16, 16, 12, 12, railMid]);
+    rects.push([18, 18, 8, 8, railHi]);
+  }
+
+  for (const [x, y, w_, h_, fill] of rects) {
+    const r = document.createElementNS(SVG_NS, 'rect');
+    r.setAttribute('x', x);
+    r.setAttribute('y', y);
+    r.setAttribute('width', w_);
+    r.setAttribute('height', h_);
+    r.setAttribute('fill', fill);
+    svg.appendChild(r);
+  }
+  return svg;
+}
+
 // ---------- Grid build ----------
 
 const parkSet = new Set(LEVEL_1.parks.map(([x, y]) => `${x},${y}`));
@@ -322,7 +400,19 @@ function render() {
   currentRoutes = computeRoutes(state);
 
   for (const [k, el] of tileByKey) {
-    el.classList.toggle('rail', state.rail.has(k));
+    const isRail = state.rail.has(k);
+    el.classList.toggle('rail', isRail);
+    const oldRail = el.querySelector(':scope > .rail-svg');
+    if (oldRail) oldRail.remove();
+    if (isRail) {
+      const [x, y] = k.split(',').map(Number);
+      el.appendChild(railSprite({
+        n: state.rail.has(`${x},${y - 1}`),
+        e: state.rail.has(`${x + 1},${y}`),
+        s: state.rail.has(`${x},${y + 1}`),
+        w: state.rail.has(`${x - 1},${y}`),
+      }));
+    }
   }
 
   for (const c of currentRoutes.commuters) {
