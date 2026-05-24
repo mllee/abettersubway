@@ -531,6 +531,14 @@ function clearAllRail() {
   render();
 }
 
+function revealGoldSolution() {
+  const gold = LEVEL_1.goldSolution;
+  if (!Array.isArray(gold)) return;
+  state.rail.clear();
+  for (const [x, y] of gold) placeRail(state, x, y);
+  render();
+}
+
 function render() {
   currentRoutes = computeRoutes(state);
 
@@ -777,11 +785,50 @@ function showResultModal(r) {
   message.textContent = messageForResult(r);
   modal.appendChild(message);
 
+  const actions = document.createElement('div');
+  actions.className = 'modal-actions';
+  modal.appendChild(actions);
+
   const btn = document.createElement('button');
   btn.className = 'modal-btn';
   btn.textContent = r.allPass ? 'KEEP BUILDING' : 'TRY AGAIN';
   btn.addEventListener('click', () => closeModal());
-  modal.appendChild(btn);
+  actions.appendChild(btn);
+
+  // Optional "Reveal best solution" — only when we have one to show and
+  // only after the player has earned a passing solution (otherwise the
+  // option feels punitive). Two-step: first click swaps the action row
+  // for an "Are you sure?" prompt, second click reveals and closes.
+  if (r.allPass && Array.isArray(LEVEL_1.goldSolution) && LEVEL_1.goldSolution.length) {
+    const reveal = document.createElement('button');
+    reveal.className = 'modal-btn ghost';
+    reveal.textContent = 'REVEAL BEST SOLUTION';
+    reveal.addEventListener('click', () => askToReveal());
+    actions.appendChild(reveal);
+  }
+
+  function askToReveal() {
+    actions.innerHTML = '';
+    const warn = document.createElement('div');
+    warn.className = 'modal-confirm-text';
+    warn.textContent = 'This will spoil the puzzle. Are you sure?';
+    actions.appendChild(warn);
+
+    const cancel = document.createElement('button');
+    cancel.className = 'modal-btn';
+    cancel.textContent = 'CANCEL';
+    cancel.addEventListener('click', () => closeModal());
+    actions.appendChild(cancel);
+
+    const confirm = document.createElement('button');
+    confirm.className = 'modal-btn primary';
+    confirm.textContent = 'REVEAL';
+    confirm.addEventListener('click', () => {
+      revealGoldSolution();
+      closeModal();
+    });
+    actions.appendChild(confirm);
+  }
 
   function closeModal() {
     backdrop.remove();

@@ -691,3 +691,34 @@ body {
   transform: translate(2px, 2px);
   box-shadow: 1px 1px 0 #2a1f15;
 }
+
+/* Ghost variant for the secondary "Reveal" affordance — quieter so the
+   primary action (KEEP BUILDING) wins the eye. */
+.modal-btn.ghost {
+  background: transparent;
+  color: var(--text-dim);
+  border-color: var(--text-dim);
+  box-shadow: 3px 3px 0 var(--text-dim);
+}
+.modal-btn.ghost:hover { background: #00000010; color: var(--text); }
+
+.modal-btn.primary {
+  background: var(--commuter-A);
+}
+.modal-btn.primary:hover { background: #e05c4a; }
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-confirm-text {
+  width: 100%;
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 4px;
+  text-align: center;
+}
