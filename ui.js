@@ -329,40 +329,26 @@ let dragMode = null;       // 'place' | 'remove' | null
 let lastDragKey = null;    // last "x,y" we acted on, to avoid double-apply
 
 // ---------- Commuter path animation ----------
-// A trail of color-coded dots walks each commuter's current shortest path
-// from start to work. Dots are spaced ~2 tiles apart and run continuously
-// — new ones spawn at the start whenever there's room behind the rear
-// dot; arrivals recycle. Each dot moves at its own segment's speed (rail
-// tiles fly by 4x faster than walked tiles), so the line visibly stretches
-// over rail and bunches over walking — the cost model becomes legible
-// without reading any numbers.
+// Each commuter's current shortest path is drawn as a flowing dotted line:
+// one SVG <path> with round-capped dashes, scrolled continuously via a CSS
+// stroke-dashoffset animation. When the player places or removes rail and
+// the route changes, the path's `d` attribute is rebuilt — the dashes keep
+// flowing along the new shape with no jitter. Per-commuter animation-delay
+// staggers the four streams so they don't all flash in sync.
 app.style.position = 'relative';
 const animOverlay = document.createElementNS(SVG_NS, 'svg');
 animOverlay.setAttribute('class', 'commuter-overlay');
 animOverlay.setAttribute('aria-hidden', 'true');
 app.appendChild(animOverlay);
 
-const TILE_DUR_WALK = 700;  // ms per walked tile
-const TILE_DUR_RAIL = 175;  // ms per rail tile (4x faster, matches cost model)
-const DOT_SPACING   = 2;    // tiles between consecutive dots (fractional pos units)
-const MAX_DOTS      = 14;   // pool size per commuter; longest path is ~30 tiles
-
 const animState = new Map();
 for (const c of LEVEL_1.commuters) {
-  const els = [];
-  const dots = [];
-  for (let i = 0; i < MAX_DOTS; i++) {
-    const dot = document.createElementNS(SVG_NS, 'circle');
-    dot.setAttribute('r', '4');
-    dot.setAttribute('class', `commuter-dot dot-${c.id}`);
-    dot.setAttribute('cx', '-10');
-    dot.setAttribute('cy', '-10');
-    dot.setAttribute('opacity', '0');
-    animOverlay.appendChild(dot);
-    els.push(dot);
-    dots.push({ pos: 0, active: false });
-  }
-  animState.set(c.id, { path: [], dots, els });
+  const lineEl = document.createElementNS(SVG_NS, 'path');
+  lineEl.setAttribute('class', `commuter-line line-${c.id}`);
+  lineEl.setAttribute('fill', 'none');
+  lineEl.setAttribute('d', '');
+  animOverlay.appendChild(lineEl);
+  animState.set(c.id, { path: [], el: lineEl });
 }
 
 const tileCenters = new Map(); // "x,y" -> {cx, cy} in #app local coords
@@ -380,10 +366,9 @@ function recomputeTileCenters() {
       cy: r.top  - appBox.top  + r.height / 2,
     });
   }
-}
-
-function durEnter(x, y) {
-  return state.rail.has(`${x},${y}`) ? TILE_DUR_RAIL : TILE_DUR_WALK;
+  // Tile geometry may have shifted (e.g. resize) — every line needs its
+  // `d` rebuilt against the new centers.
+  for (const [, s] of animState) rebuildLine(s);
 }
 
 function samePath(a, b) {
@@ -394,94 +379,25 @@ function samePath(a, b) {
   return true;
 }
 
+function rebuildLine(s) {
+  if (!s.path || s.path.length < 2) { s.el.setAttribute('d', ''); return; }
+  let d = '';
+  for (let i = 0; i < s.path.length; i++) {
+    const [x, y] = s.path[i];
+    const c = tileCenters.get(`${x},${y}`);
+    if (!c) continue;
+    d += `${i === 0 ? 'M' : 'L'} ${c.cx} ${c.cy} `;
+  }
+  s.el.setAttribute('d', d.trim());
+}
+
 function updateAnimPaths(routes) {
   for (const c of routes.commuters) {
     const s = animState.get(c.id);
     if (samePath(s.path, c.path)) continue;
-    const wasEmpty = s.path.length < 2;
     s.path = c.path.slice();
-    if (s.path.length < 2) {
-      for (const d of s.dots) d.active = false;
-      continue;
-    }
-    const maxPos = s.path.length - 1;
-    if (wasEmpty) {
-      // First valid path: prime the trail evenly so the route lights up
-      // immediately rather than slowly filling from the start tile.
-      let i = 0;
-      for (let pos = 0; pos < maxPos && i < s.dots.length; pos += DOT_SPACING) {
-        s.dots[i].pos = pos;
-        s.dots[i].active = true;
-        i++;
-      }
-      for (; i < s.dots.length; i++) s.dots[i].active = false;
-    } else {
-      // Path changed mid-stream: drop any dot now past the new endpoint.
-      // The spawner will refill gaps within a couple of seconds. Existing
-      // dots keep their fractional position, so they snap to the new tile
-      // at the same path index — slight visual jump, but it reads as
-      // "the route changed" which is exactly what just happened.
-      for (const d of s.dots) {
-        if (d.active && d.pos >= maxPos) d.active = false;
-      }
-    }
+    rebuildLine(s);
   }
-}
-
-function trySpawn(s) {
-  // Spawn a dot at pos=0 whenever the rear-most active dot is at least
-  // DOT_SPACING tiles in. This keeps roughly even spacing at the start;
-  // dots redistribute naturally as fast/slow segments stretch/bunch them.
-  let rear = Infinity;
-  for (const d of s.dots) if (d.active && d.pos < rear) rear = d.pos;
-  if (rear < DOT_SPACING) return;
-  const slot = s.dots.find((d) => !d.active);
-  if (!slot) return;
-  slot.pos = 0;
-  slot.active = true;
-}
-
-let animLastT = performance.now();
-function animTick(now) {
-  const dt = Math.min(64, now - animLastT); // clamp huge jumps on tab refocus
-  animLastT = now;
-
-  for (const [, s] of animState) {
-    if (!s.path || s.path.length < 2) {
-      for (const el of s.els) el.setAttribute('opacity', '0');
-      continue;
-    }
-    const maxPos = s.path.length - 1;
-
-    for (const d of s.dots) {
-      if (!d.active) continue;
-      const seg = Math.floor(d.pos);
-      if (seg < 0 || seg >= maxPos) { d.active = false; continue; }
-      const to = s.path[seg + 1];
-      d.pos += dt / durEnter(to[0], to[1]);
-      if (d.pos >= maxPos) d.active = false;
-    }
-
-    trySpawn(s);
-
-    for (let i = 0; i < s.dots.length; i++) {
-      const d = s.dots[i];
-      const el = s.els[i];
-      if (!d.active) { el.setAttribute('opacity', '0'); continue; }
-      const seg = Math.floor(d.pos);
-      const tFrac = d.pos - seg;
-      const from = s.path[seg];
-      const to = s.path[seg + 1];
-      const a = tileCenters.get(`${from[0]},${from[1]}`);
-      const b = tileCenters.get(`${to[0]},${to[1]}`);
-      if (!a || !b) { el.setAttribute('opacity', '0'); continue; }
-      el.setAttribute('cx', a.cx + (b.cx - a.cx) * tFrac);
-      el.setAttribute('cy', a.cy + (b.cy - a.cy) * tFrac);
-      el.setAttribute('opacity', '1');
-    }
-  }
-
-  requestAnimationFrame(animTick);
 }
 
 window.addEventListener('resize', recomputeTileCenters);
@@ -947,4 +863,3 @@ function messageForResult(r) {
 
 render();
 recomputeTileCenters();
-requestAnimationFrame(animTick);
