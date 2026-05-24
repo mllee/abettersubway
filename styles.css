@@ -9,7 +9,7 @@
   --tile-size: max(8px, min(
     44px,
     calc((100vw - 168px) / 15),
-    calc((100vh - 340px) / 15)
+    calc((100vh - 365px) / 15)
   ));
   --gap: 2px;
 
@@ -70,7 +70,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 20px;
+  /* Generous vertical padding so the HUD doesn't kiss the top of the
+     viewport and the grid has visible breathing room below. The
+     vertical reserve in --tile-size accounts for this. */
+  padding: 32px 20px;
   align-items: center;
 }
 
