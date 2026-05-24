@@ -266,11 +266,15 @@ function railSprite(conn) {
   if (n) vrail(0, 22);
   if (s) vrail(22, 44);
 
-  // Isolated tile: a tiny platform stub so it doesn't look broken.
+  // Isolated tile: draw as a short horizontal segment in the middle so it
+  // unmistakably reads as rail. Ends are tapered (don't touch the tile
+  // edges) so it's visually clear that nothing connects from either side.
   if (!n && !e && !s && !w) {
-    rects.push([14, 14, 16, 16, '#3a3a44']);
-    rects.push([16, 16, 12, 12, railMid]);
-    rects.push([18, 18, 8, 8, railHi]);
+    for (let x = 8; x < 36; x += 8) {
+      rects.push([x, 12, 5, 20, tie]);
+      rects.push([x + 5, 12, 1, 20, tieDark]);
+    }
+    hrail(6, 38);
   }
 
   for (const [x, y, w_, h_, fill] of rects) {
