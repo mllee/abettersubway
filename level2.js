@@ -7,12 +7,17 @@
 // to match Manhattan's geometry — top and bottom are land (Bronx /
 // mainland direction).
 //
-// Central Park anchors the middle, with small scattered parks
-// (Bryant, Madison, Washington, Tompkins, Battery) for local
-// routing decisions. Four "speed-bump" parks sit at the ends of
-// the two rows that aren't covered by Central Park — they make
-// long uninterrupted horizontal trunks costly to lay, pushing the
-// optimal solution toward a multi-trunk shape.
+// Central Park anchors the middle, with a one-row transverse cut at
+// row 7 (the 79th-Street transverse) splitting it into a north half
+// (rows 5–6) and a south half (rows 8–9). Commuters can route
+// through, around the east, or around the west — three options
+// instead of just "left or right of the park."
+//
+// Small scattered parks (Bryant, Madison, Washington, Tompkins,
+// Battery) add local routing decisions. Four "speed-bump" parks
+// sit at the ends of the two rows that aren't covered by Central
+// Park — they make long uninterrupted horizontal trunks costly to
+// lay, pushing the optimal solution toward a multi-trunk shape.
 
 // In-grid rivers — one column on each side of Manhattan.
 const WATER = [
@@ -23,8 +28,12 @@ const WATER = [
 const HILLS = [];
 
 const GREEN_PARKS = [
-  // Central Park — 4 cols × 5 rows. Bisects the middle of the map.
-  ...[5, 6, 7, 8, 9].flatMap(y => [7, 8, 9, 10].map(x => [x, y])),
+  // Central Park — 4 cols × 5 rows, with a one-row transverse cut
+  // (row 7) that mirrors the 79th-Street transverse in real NYC.
+  // The cut splits the park into a north half (rows 5–6) and a south
+  // half (rows 8–9) and gives commuters a third option beyond
+  // "around the east side" / "around the west side": straight across.
+  ...[5, 6, 8, 9].flatMap(y => [7, 8, 9, 10].map(x => [x, y])),
 
   // Small scattered parks (NYC neighborhoods).
   [10, 9], [11, 9],   // Bryant Park (adjacent to Central Park)
@@ -68,12 +77,14 @@ export const LEVEL_2 = {
     { id: 'D', start: [3, 14],  dest: [9, 3]  },
   ],
 
-  // tools/solve.mjs converges to a 22-tile optimum — a multi-trunk
-  // shape (row-4 above Central Park, a col-4 vertical west spine, a
-  // row-11 east bar below the park, and a small south step). Naive
-  // "single long horizontal" attempts cost 25+ tiles thanks to the
-  // speed-bump parks, so the player has to find the multi-trunk
-  // shape to hit gold.
+  // tools/solve.mjs at deadline=20 converges to a 22-tile multi-trunk
+  // shape: a row-4 trunk above Central Park, two vertical spines down
+  // Hudson (col 4) and East Side (col 12), and a row-13 east-west bar
+  // joining them. The 79th-transverse cut at row 7 doesn't appear in
+  // the optimum (routing above or below the park is competitive at
+  // this park size), but the cut is what makes a *naive* solution
+  // (single trunk above the park) viable enough that players reach
+  // for it first, then have to find the multi-trunk shape to hit gold.
   hardCap: 26,
   gold:    22,
   silver:  24,
@@ -84,12 +95,12 @@ export const LEVEL_2 = {
   railCost: 0.5,
 
   goldSolution: [
-    [5, 4], [6, 4], [7, 4], [8, 4], [9, 4],
-    [12, 7], [13, 7], [14, 7],
-    [4, 8], [4, 9], [4, 10], [4, 11],
-    [9, 11], [10, 11], [11, 11], [12, 11],
-    [4, 12], [7, 12], [8, 12], [9, 12],
-    [7, 13],
-    [7, 14],
+    [4, 4], [5, 4], [6, 4], [7, 4], [8, 4], [9, 4],
+    [14, 5], [14, 6],
+    [12, 9],
+    [4, 10], [12, 10],
+    [4, 11], [12, 11],
+    [4, 12], [12, 12],
+    [4, 13], [7, 13], [8, 13], [9, 13], [10, 13], [11, 13], [12, 13],
   ],
 };
