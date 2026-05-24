@@ -20,13 +20,15 @@ const sideEl = document.getElementById('commuters');
 
 const state = createState(LEVEL_1);
 
-// Each commuter has a distinct sprite + destination type so the board
-// reads like a small town instead of four abstract letters.
+// Per-commuter palette. The same color drives the person's shirt, the
+// destination building's walls, both tile frames, and the sidebar row —
+// so who-goes-where reads at a glance. Kept in sync with --commuter-*
+// CSS vars in styles.css.
 const COMMUTER_META = {
-  A: { destType: 'office', destLabel: 'office' },
-  B: { destType: 'school', destLabel: 'school' },
-  C: { destType: 'shop',   destLabel: 'shop'   },
-  D: { destType: 'clinic', destLabel: 'clinic' },
+  A: { destLabel: 'work', wall: '#c84a3a', roofDark: '#7a2418', roofLight: '#e36655' },
+  B: { destLabel: 'work', wall: '#3a6fb5', roofDark: '#1a3a78', roofLight: '#5e92d5' },
+  C: { destLabel: 'work', wall: '#2a9d8f', roofDark: '#10665a', roofLight: '#4ec0b0' },
+  D: { destLabel: 'work', wall: '#8a4a9a', roofDark: '#4a1a5c', roofLight: '#aa6ab8' },
 };
 
 // ---------- SVG pixel sprites ----------
@@ -82,12 +84,13 @@ function treeSprite() {
 }
 
 function personSprite(id) {
-  // Each commuter gets a distinct outfit palette.
+  // Shirt color matches the commuter's accent so the eye can pair person
+  // with destination building (which also wears that color).
   const palette = {
-    A: { hair: '#3a2010', skin: '#f5c89a', shirt: '#c84a3a', pants: '#3a3a5a', shoe: '#1a1a1a' }, // brown hair, red shirt
-    B: { hair: '#daa520', skin: '#ffd5b5', shirt: '#3a6fb5', pants: '#3a3a5a', shoe: '#1a1a1a' }, // blonde, blue shirt
-    C: { hair: '#5a3a1a', skin: '#f5c89a', shirt: '#e5b223', pants: '#5a3a1a', shoe: '#3a2010' }, // kid, yellow shirt
-    D: { hair: '#cccccc', skin: '#f5d5b5', shirt: '#8a4a9a', pants: '#4a3a2a', shoe: '#3a2010' }, // gray hair, purple
+    A: { hair: '#3a2010', skin: '#f5c89a', shirt: '#c84a3a', pants: '#3a3a5a', shoe: '#1a1a1a' },
+    B: { hair: '#daa520', skin: '#ffd5b5', shirt: '#3a6fb5', pants: '#3a3a5a', shoe: '#1a1a1a' },
+    C: { hair: '#5a3a1a', skin: '#f5c89a', shirt: '#2a9d8f', pants: '#5a3a1a', shoe: '#3a2010' },
+    D: { hair: '#cccccc', skin: '#f5d5b5', shirt: '#8a4a9a', pants: '#4a3a2a', shoe: '#3a2010' },
   }[id];
 
   return makeSprite('0 0 16 18', [
@@ -122,118 +125,39 @@ function personSprite(id) {
   ], `person person-${id}`);
 }
 
-function buildingSprite(type) {
-  if (type === 'office') {
-    // Tall blue-gray office tower with grid of lit windows
-    return makeSprite('0 0 16 18', [
-      // roof cap
-      [2, 1, 12, 1, '#3a4258'],
-      [2, 2, 12, 1, '#3a4258'],
-      // body
-      [2, 3, 12, 13, '#7c89a8'],
-      // body shading
-      [13, 3, 1, 13, '#5a6680'],
-      [2, 15, 12, 1, '#5a6680'],
-      // windows (3 cols x 3 rows)
-      [3, 4, 2, 2, '#ffe066'],
-      [7, 4, 2, 2, '#ffe066'],
-      [11, 4, 2, 2, '#ffe066'],
-      [3, 7, 2, 2, '#ffe066'],
-      [7, 7, 2, 2, '#ffd54f'],
-      [11, 7, 2, 2, '#ffe066'],
-      [3, 10, 2, 2, '#ffe066'],
-      [7, 10, 2, 2, '#ffe066'],
-      [11, 10, 2, 2, '#ffe066'],
-      // door
-      [7, 13, 2, 3, '#3a2010'],
-      [7, 13, 2, 1, '#1a1008'],
-      // ground line
-      [1, 16, 14, 1, '#5a4a3a'],
-    ], 'building office');
+function buildingSprite(id) {
+  // One generic "work building" shape, recolored by commuter. Pitched
+  // roof + body + windows + door. Recognizable at 34px and unmistakable
+  // when paired with the matching shirt color across the board.
+  const meta = COMMUTER_META[id];
+  if (!meta) {
+    return makeSprite('0 0 16 18', [[2, 2, 12, 14, '#888888']], 'building');
   }
-  if (type === 'school') {
-    // Red brick school with a bell tower on top
-    return makeSprite('0 0 16 18', [
-      // bell tower
-      [7, 0, 2, 2, '#aaaaaa'],
-      [6, 2, 4, 1, '#5a3a2a'],
-      // roof
-      [3, 3, 10, 1, '#5a3a2a'],
-      [2, 4, 12, 1, '#7a4a32'],
-      // body
-      [2, 5, 12, 11, '#c4523a'],
-      // brick courses (darker lines)
-      [2, 8, 12, 1, '#9a3a28'],
-      [2, 12, 12, 1, '#9a3a28'],
-      // windows
-      [4, 6, 2, 2, '#cce0ff'],
-      [10, 6, 2, 2, '#cce0ff'],
-      [4, 9, 2, 2, '#cce0ff'],
-      [10, 9, 2, 2, '#cce0ff'],
-      // door (arched look)
-      [7, 12, 2, 4, '#3a2010'],
-      [6, 13, 1, 3, '#3a2010'],
-      [9, 13, 1, 3, '#3a2010'],
-      // ground
-      [1, 16, 14, 1, '#5a4a3a'],
-    ], 'building school');
-  }
-  if (type === 'shop') {
-    // Storefront with a striped green awning
-    return makeSprite('0 0 16 18', [
-      // sign
-      [3, 1, 10, 2, '#d8c890'],
-      [3, 1, 10, 1, '#a89860'],
-      // awning base
-      [2, 3, 12, 2, '#3a6a4a'],
-      [2, 4, 12, 1, '#2a5038'],
-      // awning stripes
-      [3, 3, 1, 2, '#5fb88a'],
-      [6, 3, 1, 2, '#5fb88a'],
-      [9, 3, 1, 2, '#5fb88a'],
-      [12, 3, 1, 2, '#5fb88a'],
-      // body
-      [2, 5, 12, 11, '#e6d6a8'],
-      [13, 5, 1, 11, '#b89868'],
-      // big display window
-      [3, 6, 10, 6, '#a8c8e0'],
-      [3, 6, 10, 1, '#5a7088'],
-      [3, 11, 10, 1, '#5a7088'],
-      [3, 6, 1, 6, '#5a7088'],
-      [12, 6, 1, 6, '#5a7088'],
-      // door
-      [7, 12, 2, 4, '#5a3a1a'],
-      // doorknob
-      [8, 14, 1, 1, '#e5b223'],
-      // ground
-      [1, 16, 14, 1, '#5a4a3a'],
-    ], 'building shop');
-  }
-  if (type === 'clinic') {
-    // White clinic with red cross
-    return makeSprite('0 0 16 18', [
-      // roof
-      [2, 2, 12, 1, '#c44a3a'],
-      [3, 3, 10, 1, '#c44a3a'],
-      // body white
-      [2, 4, 12, 12, '#f0f0f0'],
-      [13, 4, 1, 12, '#c0c0c0'],
-      [2, 15, 12, 1, '#c0c0c0'],
-      // red cross (medical)
-      [7, 5, 2, 4, '#d04a3a'],
-      [6, 6, 4, 2, '#d04a3a'],
-      // windows
-      [3, 10, 2, 2, '#a8c8e0'],
-      [11, 10, 2, 2, '#a8c8e0'],
-      // door
-      [7, 12, 2, 4, '#5a3a1a'],
-      [8, 14, 1, 1, '#e5b223'],
-      // ground
-      [1, 16, 14, 1, '#5a4a3a'],
-    ], 'building clinic');
-  }
-  // Fallback
-  return makeSprite('0 0 16 18', [[2, 2, 12, 14, '#888888']], 'building');
+  const { wall, roofDark, roofLight } = meta;
+  return makeSprite('0 0 16 18', [
+    // pitched roof (3 tiers, light on top, darker as it widens)
+    [6, 1, 4, 1, roofDark],
+    [5, 2, 6, 1, roofLight],
+    [4, 3, 8, 1, roofLight],
+    [3, 4, 10, 1, roofDark],
+    // chimney
+    [11, 1, 2, 2, roofDark],
+    // body walls
+    [3, 5, 10, 11, wall],
+    // shading on right + bottom edges
+    [12, 5, 1, 11, roofDark],
+    [3, 15, 10, 1, roofDark],
+    // windows (2 lit yellow squares with a sash cross)
+    [4, 6, 3, 3, '#ffe066'],
+    [9, 6, 3, 3, '#ffe066'],
+    [5, 7, 1, 1, '#00000050'],
+    [10, 7, 1, 1, '#00000050'],
+    // door
+    [7, 11, 2, 5, roofDark],
+    [8, 13, 1, 1, '#ffd54f'],
+    // ground line
+    [1, 16, 14, 1, '#5a4a3a'],
+  ], `building building-${id}`);
 }
 
 // ---------- Grid build ----------
@@ -294,7 +218,7 @@ for (let y = 1; y <= LEVEL_1.height; y++) {
       const meta = COMMUTER_META[upper];
       div.classList.add('dest', `dest-${lower}`);
       div.dataset.commuter = upper;
-      div.appendChild(buildingSprite(meta.destType));
+      div.appendChild(buildingSprite(upper));
 
       div.addEventListener('mouseenter', () => {
         if (dragMode) return;
