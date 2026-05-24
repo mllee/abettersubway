@@ -216,19 +216,23 @@ body {
   /* Symmetric 40px padding so the dirt frame on the bottom/left visually
      matches the ocean strips on top/right. */
   padding: 40px;
+  /* Off-grid frame: muted/lightened versions of the in-grid water and
+     dirt colors. The frame is decorative — it should hint at "ocean to
+     the NE, land everywhere else" without competing with the actual
+     playable water tiles and rail/path graphics inside. */
   background:
     /* Top ocean strip — full width of the box, top 40px. */
     repeating-linear-gradient(135deg,
-      #4a8bb8 0 8px,
-      #3f7aa3 8px 9px,
-      #4a8bb8 9px 16px) top / 100% 40px no-repeat,
+      #b8d4e6 0 8px,
+      #aac6dc 8px 9px,
+      #b8d4e6 9px 16px) top / 100% 40px no-repeat,
     /* Right ocean strip — full height of the box, right 40px. */
     repeating-linear-gradient(45deg,
-      #4a8bb8 0 8px,
-      #3f7aa3 8px 9px,
-      #4a8bb8 9px 16px) right / 40px 100% no-repeat,
+      #b8d4e6 0 8px,
+      #aac6dc 8px 9px,
+      #b8d4e6 9px 16px) right / 40px 100% no-repeat,
     /* Land base (dirt fill behind the playable tiles). */
-    linear-gradient(135deg, #c9a872 0 50%, #b89461 50% 100%);
+    linear-gradient(135deg, #e3d2b0 0 50%, #d8c39c 50% 100%);
   border: 2px solid var(--panel-border);
   border-radius: 4px;
   box-shadow: 4px 4px 0 var(--panel-shadow);
