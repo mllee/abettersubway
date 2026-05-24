@@ -42,22 +42,56 @@ for (let y = 1; y <= level.height; y++) {
       div.dataset.commuter = destMap.get(k);
       div.textContent = destMap.get(k).toLowerCase();
     }
-    div.addEventListener('click', onTileClick);
+    div.addEventListener('mousedown', onTileMouseDown);
+    div.addEventListener('mouseenter', onTileMouseEnter);
     app.appendChild(div);
     tiles.set(k, div);
   }
 }
 
-function onTileClick(e) {
+let dragMode = null; // 'place' | 'remove' | null
+
+function onTileMouseDown(e) {
+  if (e.button !== 0) return; // left click only
+  e.preventDefault();
   const x = Number(e.currentTarget.dataset.x);
   const y = Number(e.currentTarget.dataset.y);
   const k = `${x},${y}`;
   if (state.rail.has(k)) {
+    dragMode = 'remove';
     removeRail(state, x, y);
   } else {
+    dragMode = 'place';
     const res = placeRail(state, x, y);
     if (!res.ok) flashReject(e.currentTarget, res.reason);
   }
+  render();
+}
+
+function onTileMouseEnter(e) {
+  if (!dragMode) return;
+  const x = Number(e.currentTarget.dataset.x);
+  const y = Number(e.currentTarget.dataset.y);
+  const k = `${x},${y}`;
+  let changed = false;
+  if (dragMode === 'place' && !state.rail.has(k)) {
+    if (placeRail(state, x, y).ok) changed = true;
+    // silent on reject during drag — sweeping over parks/starts/dests
+    // shouldn't flash the whole grid red.
+  } else if (dragMode === 'remove' && state.rail.has(k)) {
+    removeRail(state, x, y);
+    changed = true;
+  }
+  if (changed) render();
+}
+
+window.addEventListener('mouseup', () => { dragMode = null; });
+// If the mouse leaves the window mid-drag, cancel.
+window.addEventListener('blur', () => { dragMode = null; });
+
+function clearAllRail() {
+  if (state.rail.size === 0) return;
+  state.rail.clear();
   render();
 }
 
@@ -101,7 +135,9 @@ function render() {
     <span class="hud-item">Rail: <b>${currentRoutes.railCount}</b> / ${level.hardCap}</span>
     <span class="hud-item">Gold ${level.gold} · Silver ${level.silver} · Bronze ${level.bronze}</span>
     <span class="hud-item medal medal-${currentRoutes.medal}">${medalText}</span>
+    <button id="clear-btn" class="hud-btn" ${currentRoutes.railCount === 0 ? 'disabled' : ''}>Clear rail</button>
   `;
+  document.getElementById('clear-btn').addEventListener('click', clearAllRail);
 
   cards.innerHTML = '';
   for (const c of currentRoutes.commuters) {

@@ -55,6 +55,22 @@ body {
 .medal-bronze { background: #e0b890; color: #5a3614; }
 .medal-fail   { background: #f4d1d1; color: #7a1414; }
 
+.hud-btn {
+  margin-left: auto;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #444;
+  transition: background 80ms, border-color 80ms;
+}
+.hud-btn:hover:not(:disabled) { background: #f0eee8; border-color: #999; }
+.hud-btn:active:not(:disabled) { background: #e6e3da; }
+.hud-btn:disabled { color: #aaa; cursor: not-allowed; }
+
 #app {
   grid-area: app;
   display: grid;
