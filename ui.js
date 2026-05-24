@@ -579,7 +579,10 @@ function renderHud(r) {
   title.className = 'hud-title';
   title.innerHTML =
     `Add train tracks to help everyone get to work in ` +
-    `<span class="deadline">${deadline} minutes</span>!`;
+    `<span class="deadline">${deadline} minutes</span>!` +
+    `<span class="hud-subtitle">Everyone takes the shortest route — ` +
+    `walking <strong>2 min</strong> per square, ` +
+    `train <strong>30 sec</strong> per square.</span>`;
   top.appendChild(title);
 
   const submit = document.createElement('button');
@@ -590,33 +593,11 @@ function renderHud(r) {
 
   hud.appendChild(top);
 
-  // Bottom row: speeds, rail count, Clear, version.
+  // Bottom row: rail-tile budget, Clear, version. Per-tile speeds moved
+  // up into the title sub-line so the player learns the rules from the
+  // header instead of two separate places.
   const bottom = document.createElement('div');
   bottom.className = 'hud-row bottom';
-
-  const walk = document.createElement('span');
-  walk.className = 'hud-sub-item';
-  walk.innerHTML =
-    `<span class="label">Walking:</span> ` +
-    `<span class="value">${LEVEL_1.walkCost} min/tile</span>`;
-  bottom.appendChild(walk);
-
-  const sep1 = document.createElement('span');
-  sep1.className = 'hud-sep';
-  sep1.textContent = '·';
-  bottom.appendChild(sep1);
-
-  const rail = document.createElement('span');
-  rail.className = 'hud-sub-item';
-  rail.innerHTML =
-    `<span class="label">Rail:</span> ` +
-    `<span class="value">${LEVEL_1.railCost} min/tile</span>`;
-  bottom.appendChild(rail);
-
-  const sep2 = document.createElement('span');
-  sep2.className = 'hud-sep';
-  sep2.textContent = '·';
-  bottom.appendChild(sep2);
 
   const railCount = document.createElement('span');
   railCount.className = 'hud-rail-count';
