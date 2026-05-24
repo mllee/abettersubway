@@ -1,7 +1,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
 
 :root {
-  --tile-size: 44px;
+  /* --tile-size auto-shrinks so the 15x15 board + HUD always fits in the
+     viewport. The two calc() terms reserve room for body padding, HUD
+     height, gap, plus the grid's own border/padding/gaps. Capped at 44px
+     on big screens; floors at 8px so calc never goes negative on absurd
+     sizes. Resizing the window reflows live. */
+  --tile-size: max(8px, min(
+    44px,
+    calc((100vw - 140px) / 15),
+    calc((100vh - 280px) / 15)
+  ));
   --gap: 2px;
 
   --bg: #f3e9c7;
@@ -60,8 +69,10 @@ body {
 
 .sprite-svg {
   display: block;
-  width: 28px;
-  height: 28px;
+  /* All sprite sizes are ratios of --tile-size so they stay proportional
+     when the grid auto-shrinks on small viewports. */
+  width: calc(var(--tile-size) * 0.64);
+  height: calc(var(--tile-size) * 0.64);
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   pointer-events: none;
@@ -248,7 +259,7 @@ body {
   cursor: not-allowed;
   box-shadow: inset 0 0 0 1px #00000020;
 }
-.tile.park .sprite-svg { width: 30px; height: 30px; }
+.tile.park .sprite-svg { width: calc(var(--tile-size) * 0.68); height: calc(var(--tile-size) * 0.68); }
 
 /* Water (NE bay pocket): solid blue with diagonal sheen + wave caps. */
 .tile.water {
@@ -261,7 +272,7 @@ body {
   cursor: not-allowed;
   box-shadow: inset 0 0 0 1px #00000025;
 }
-.tile.water .sprite-svg { width: 30px; height: 30px; }
+.tile.water .sprite-svg { width: calc(var(--tile-size) * 0.68); height: calc(var(--tile-size) * 0.68); }
 
 /* Hill (Twin Peaks): warm tan dirt with a mountain sprite. */
 .tile.hill {
@@ -271,7 +282,7 @@ body {
   cursor: not-allowed;
   box-shadow: inset 0 0 0 1px #00000025;
 }
-.tile.hill .sprite-svg { width: 30px; height: 30px; }
+.tile.hill .sprite-svg { width: calc(var(--tile-size) * 0.68); height: calc(var(--tile-size) * 0.68); }
 
 /* Start + destination tiles: soft tint of accent color + chunky frame.
    Both ends of one commuter's commute carry the same color, so pairing
@@ -282,8 +293,8 @@ body {
   background-color: color-mix(in srgb, var(--accent) 22%, var(--tile-bg));
   box-shadow: inset 0 0 0 3px var(--accent);
 }
-.tile.start .sprite-svg { width: 30px; height: 34px; }
-.tile.dest  .sprite-svg { width: 34px; height: 38px; }
+.tile.start .sprite-svg { width: calc(var(--tile-size) * 0.68); height: calc(var(--tile-size) * 0.77); }
+.tile.dest  .sprite-svg { width: calc(var(--tile-size) * 0.77); height: calc(var(--tile-size) * 0.86); }
 
 .tile.start-A, .tile.dest-a { --accent: var(--commuter-A); }
 .tile.start-B, .tile.dest-b { --accent: var(--commuter-B); }
