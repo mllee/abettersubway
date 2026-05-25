@@ -12,7 +12,10 @@ export const LEVELS = [
   { id: 'nyc', name: 'New York City',  data: LEVEL_2 },
 ];
 
-const STORAGE_KEY = 'abs-active-level';
+// Versioned key so we can reset everyone to SF (index 0) on releases
+// where the default ordering changes. Bump the suffix any time you want
+// to invalidate the saved per-user selection.
+const STORAGE_KEY = 'abs-active-level-v2';
 
 export function getActiveLevelIndex() {
   const raw = localStorage.getItem(STORAGE_KEY);
