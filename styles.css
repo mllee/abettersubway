@@ -129,13 +129,20 @@ body {
   flex: 1;
   min-width: 0;
   font-family: "VT323", "Press Start 2P", ui-monospace, monospace;
-  font-size: 24px;
+  /* Scale the goal-line type with viewport width so it always fits the
+     HUD on mobile. clamp floor (15px) keeps it readable; ceiling (24px)
+     matches the desktop look. */
+  font-size: clamp(15px, 3.6vw, 24px);
   line-height: 1.2;
   letter-spacing: 1px;
   color: var(--text);
-  /* Keep the main goal on a single line; the subtitle below is display:block
-     so it lives on its own line(s) below and is free to wrap. */
+  /* On wide viewports the goal stays on one line; on narrow viewports we
+     let it wrap rather than overflow the HUD box. The subtitle below is
+     display:block so it sits on its own line(s) underneath either way. */
   white-space: nowrap;
+}
+@media (max-width: 520px) {
+  #hud .hud-title { white-space: normal; }
 }
 #hud .hud-title .deadline {
   color: var(--red);
