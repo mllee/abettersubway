@@ -187,14 +187,6 @@ body {
 }
 #hud .hud-rail-count .num { color: var(--red); }
 
-#hud .hud-version {
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 10px;
-  color: var(--text-dim);
-  cursor: help;
-  margin-left: 4px;
-}
-
 /* ---------- City title (slim caption above the grid) ---------- */
 
 .city-title {

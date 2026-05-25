@@ -20,7 +20,6 @@ import {
   removeRail,
   computeRoutes,
 } from './mechanics.js';
-import { VERSION, BUILD } from './version.js';
 
 // Active level (loaded from localStorage). The rest of this file treats
 // LEVEL_1 as a const because the prev/next arrows swap levels by
@@ -643,9 +642,9 @@ function renderHud(r) {
 
   hud.appendChild(top);
 
-  // Bottom row: rail-tile budget, Clear, version. Per-tile speeds moved
-  // up into the title sub-line so the player learns the rules from the
-  // header instead of two separate places.
+  // Bottom row: rail-tile budget + Clear. Per-tile speeds moved up into
+  // the title sub-line so the player learns the rules from the header
+  // instead of two separate places.
   const bottom = document.createElement('div');
   bottom.className = 'hud-row bottom';
 
@@ -661,12 +660,6 @@ function renderHud(r) {
   clearBtn.disabled = r.railCount === 0;
   clearBtn.addEventListener('click', clearAllRail);
   bottom.appendChild(clearBtn);
-
-  const ver = document.createElement('span');
-  ver.className = 'hud-version';
-  ver.title = `Build ${BUILD}. If this number lags behind GitHub, Pages hasn't redeployed yet — hard-refresh.`;
-  ver.textContent = `v${VERSION}`;
-  bottom.appendChild(ver);
 
   hud.appendChild(bottom);
 }
