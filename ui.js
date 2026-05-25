@@ -833,7 +833,17 @@ function showResultModal(r) {
   // only after the player has earned a passing solution (otherwise the
   // option feels punitive). Two-step: first click swaps the action row
   // for an "Are you sure?" prompt, second click reveals and closes.
-  if (r.allPass && Array.isArray(LEVEL_1.goldSolution) && LEVEL_1.goldSolution.length) {
+  // Only offer "Reveal best" when there's a meaningfully better known
+  // solution. If the player matched or beat our recorded gold count
+  // (including the cases where they tied it or found something we
+  // didn't), the button would lie about there being something better
+  // to learn — so we hide it.
+  if (
+    r.allPass
+    && Array.isArray(LEVEL_1.goldSolution)
+    && LEVEL_1.goldSolution.length
+    && r.railCount > LEVEL_1.goldSolution.length
+  ) {
     const reveal = document.createElement('button');
     reveal.className = 'modal-btn ghost';
     reveal.textContent = 'REVEAL BEST SOLUTION';
