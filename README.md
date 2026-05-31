@@ -1,79 +1,34 @@
-# A Better Subway
+Go to https://mllee.github.io/abettersubway/ to play the hosted game
 
-An interactive graph-optimization puzzle disguised as a city map. You're given
-four commuters who each walk a slow route to work; you have a budget of fast
-"train tracks" to lay on the grid. Goal: get everyone to work in 20 minutes or
-less, using as few tracks as possible.
+##Inspiration
 
-Live: **https://mllee.github.io/abettersubway/**
+One of my favorite experiences as an engineer is when complex technical ideas show up in real life. For example, in my previous work at Facebook we observed that election interference took the shape of bipartite graphs, and by using graph algorithms we could identify things like Russian propaganda campaigns. This was exciting to discover! A concept from deep computer science gave us an edge in our real battle against foreign actors, and it also inspired me to brush up on my graph theory.
+ 
+I wanted to build an experience that gives someone that same feeling. Something that looks like a simple child’s game, but actually introduces the user into an interesting graph problem and leaves them curious about how to better tackle problems like it.
 
-## What you do
+##Why it’s interesting
 
-- **Click an empty tile** to lay a track. Click an existing track to remove it.
-- **Click and drag** to paint a strip of track at once.
-- **Hover a commuter or a workplace** to see their current route and time.
-- **Submit** when you think you're done — you'll see your medal tier (gold,
-  silver, bronze) and the best known solution for comparison.
-- **◀ ▶ in the result modal** flip between cities.
+Everyone can relate to the challenge of getting around a city or wishing their bus came faster, so I thought building new trains for a city would be a great way to make graph problems feel real. There are many technical parallels here– the Steiner Tree Problem asks how to optimally connect nodes in a graph, Dijkstra's is running behind the scenes to find everyone’s best commute, and improving networks under resource constraints is a challenge for many engineers.
 
-## Levels
+My twist on the classic Steiner Tree Problem is that in my game the nodes are already connected. Instead, I ask the user “What parts of this graph are the most important to improve?”
 
-Two so far, both 16×16:
+##Key Decisions and Tradeoffs
 
-- **San Francisco** — Bay on the north and east, Golden Gate Park splitting
-  the city, Twin Peaks in the middle, McLaren cluster down south. Commuters
-  arranged in a rotational pattern (each one heads in a different cardinal
-  direction).
-- **New York City** — Hudson and East River on each side, Central Park
-  dominating the middle, smaller scattered parks throughout Manhattan, with
-  "speed-bump" obstacles that break naive long horizontal rails.
+For this game to inspire its users to learn about graphs, I needed them to understand the problem quickly, understand the actions they could take, and want to improve their solutions. The most important decisions I made were around how to give the user the right affordances (“What can I do?”) and how I showed them the consequences (“What happened when I did it?”).
 
-Both levels are designed so that two different players solving them reach the
-gold tier via geometrically different track layouts — that's the design bar
-we calibrate against (see `tools/solve.mjs`).
+The biggest example of that was to give users only one input and one output. Users could only put down or pick up train tiles, and the commute times were either passing or failing. There are many inputs I could have created, from train station tiles to expensive track tiles for water features, but having only one input focuses the user’s attention on the core puzzle mechanics. Clear pass/fail feedback also gives a more tangible success than a vague goal like “lower commute times by 15%.”
 
-## Tech
+Another key decision I made was to make the simulation continuous instead of click-to-run. My first instinct was to create a “Run Simulation” button to run the commutes, but it created too big of a gap between making a change and understanding if it worked. This nudged users towards finding any working solution instead of the best one. By providing live map updates, the player is always fine-tuning and the game pushes them towards the optimal solution.
 
-Plain static site, zero build step:
+In total, these decisions create an environment that nudges the user into curiosity and action. After all, the best way to teach an idea is to convince someone it’s worth learning. The user may not walk away knowing terms like the Steiner Tree Problem, but I hope they walk away with just enough spark to wonder “Huh. That was fun, I wonder what the best way to solve that is?” and go looking for more.
 
-- ES modules served straight from disk (`<script type="module">`).
-- No bundler, no transpiler, no framework.
-- GitHub Pages from `main`.
+##Next Steps
 
-To run locally, any static file server works:
+With more time on the project, I’d love to build a level editor. Level design seems to have the biggest impact on how fun each puzzle is, and raises another interesting question: what makes some graphs harder to optimize than others? This would also surface the puzzle solver that’s currently behind the scenes. 
 
-```
-python3 -m http.server 8731
-# then open http://localhost:8731/
-```
+To find the best solution, I’m currently running a multi-start hill climb algorithm that greedily adds the next best tile, and then randomly mixes up tiles for various starts to discover the best solution. This is not provably optimal, but good enough to present a solution to the user. If we really needed to, we could represent the entire map as a linear equation and use that as an optimization function to then find a reliable best solution. That feels like overkill though; worst case I’m happy to leave a user thrilled that they found a better solution than I did.
 
-## File map
+##How I built it
 
-```
-index.html       Three semantic regions (#hud, #app, #commuters), loads ui.js.
-ui.js            Renders the board, HUD, hover cards, success modal, and
-                 wires up rail placement / drag-paint / level switching.
-styles.css       All the styling — retro pixel theme (Press Start 2P, VT323).
-mechanics.js     The game logic — createState, placeRail, removeRail,
-                 computeRoutes. Pure data in / data out, no DOM.
-level1.js        San Francisco level data (obstacles + commuters + tiers).
-level2.js        New York City level data.
-levels.js        Level registry + active-level persistence in localStorage.
-version.js       Build version stamp. Bumped on every deploy.
-tools/solve.mjs  Multi-start hillclimb solver. Given a level file, finds the
-                 minimum-rail layout that gets every commuter under the
-                 deadline. Used to verify gold targets and compute the
-                 "Reveal best solution" hint.
-```
+I spent about 2.5 hours putting this together, not including additional time I later spent designing level 2 after my friends asked for it. I did this by writing up a product spec, using custom Claude skills to plan an engineering review to anticipate implementation kinks (ex. whether each tile’s travel time was calculated upon entry or exit), and scope out what lines I should draw between different coding instances. Then, after clearly scoping the work for each coding harness instance and defining the interactions and APIs between them, I ran 3 Claude Code instances in parallel in separate git worktrees, and minimized conflicts by having a frontend, backend, and coordinator instance that each touched different areas of the project. 
 
-## Adding a level
-
-1. Create `levelN.js` exporting a `LEVEL_N` const with the same shape as
-   `LEVEL_1` (see `level1.js` for the schema — width, height, parks/water/
-   hills/greenParks, commuters, tier targets, deadline, `oceanEdges`).
-2. Register it in `levels.js` (append to the `LEVELS` array).
-3. Run `node tools/solve.mjs levelN.js --trials=30` to verify the gold
-   target you set is achievable and to grab a canonical `goldSolution`.
-
-The grid renderer in `ui.js` picks up `width`, `height`, the three obstacle
-subsets, and `oceanEdges` automatically — no level-specific UI code needed.
