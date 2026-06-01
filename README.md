@@ -2,15 +2,9 @@ Go to https://mllee.github.io/abettersubway/ to play the hosted game
 
 ## Inspiration
 
-One of my favorite experiences as an engineer is when complex technical ideas show up in real life. For example, in my previous work at Facebook we observed that election interference took the shape of bipartite graphs, and by using graph algorithms we could identify things like Russian propaganda campaigns. This was exciting to discover! A concept from deep computer science gave us an edge in our real battle against foreign actors, and it also inspired me to brush up on my graph theory.
- 
-I wanted to build an experience that gives someone that same feeling. Something that looks like a simple child’s game, but actually introduces the user into an interesting graph problem and leaves them curious about how to better tackle problems like it.
+The prompt asks me to help a user understand a technical concept, but in the scope of a web app like this I really only have 15 seconds to surprise a user before they click on the next Hacker News link, or before you go back and respond to that slack message. So the real challenge is: In a world full of distractions, how do I get someone to learn something they weren’t intending on learning?
 
-## Why it’s interesting
-
-Everyone can relate to the challenge of getting around a city or wishing their bus came faster, so I thought building new trains for a city would be a great way to make graph problems feel real. There are many technical parallels here– the Steiner Tree Problem asks how to optimally connect nodes in a graph, Dijkstra's is running behind the scenes to find everyone’s best commute, and improving networks under resource constraints is a challenge for many engineers.
-
-My twist on the classic Steiner Tree Problem is that in my game the nodes are already connected. Instead, I ask the user “What parts of this graph are the most important to improve?”
+The way I attempt to do it here is by focusing on the challenge and foregoing the technical jargon. I want the user to struggle with the puzzle and overcome it before ever realizing it’s a graph problem. I want them to build an intuition for why this is interesting and difficult, and inspire them to go looking for more.
 
 ## Key Decisions and Tradeoffs
 
@@ -31,4 +25,5 @@ To find the best solution, I’m currently running a multi-start hill climb algo
 ## How I built it
 
 I spent about 2.5 hours putting this together, not including additional time I later spent designing level 2 after my friends asked for it. I did this by writing up a product spec, using custom Claude skills to plan an engineering review to anticipate implementation kinks (ex. whether each tile’s travel time was calculated upon entry or exit), and scope out what lines I should draw between different coding instances. Then, after clearly scoping the work for each coding harness instance and defining the interactions and APIs between them, I ran 3 Claude Code instances in parallel in separate git worktrees, and minimized conflicts by having a frontend, backend, and coordinator instance that each touched different areas of the project. 
+
 
